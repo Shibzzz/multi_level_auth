@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level 2 - Puzzle Authentication</title>
+    {% load static %}
+    <link href="{% static 'css/login.css' %}" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- jQuery for drag-and-drop -->
+    <style>
+        #puzzle {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .puzzle-piece {
+            width: 80px;
+            height: 80px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+
+        #puzzle-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 20px;
+        }
+
+        #submit-puzzle {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #submit-puzzle:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome, {{ user.username }}!</h1>
+
+   <!-- Previous styles remain the same -->
+<div class="auth-container">
+    <h2>Level 2: Image Pattern Authentication</h2>
+    
+    <div class="image-grid">
+        {% for i in "123456789" %}
+        <div class="grid-cell" data-index="{{ i }}">
+            <img src="{{ auth_image_url }}" 
+                 style="clip-path: inset({{ forloop.counter0|divisibleby:3|multiply:33.33 }}% {{ forloop.counter|divisibleby:3|multiply:33.33 }}% {{ forloop.counter|add:-1|divisibleby:3|multiply:33.33 }}% {{ forloop.counter0|add:1|divisibleby:3|multiply:33.33 }}%);">
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="pattern" id="pattern">
+        <button type="submit">Verify Pattern</button>
+    </form>
+</div>
+
+<!-- Add similar JavaScript for pattern selection as in register.html -->

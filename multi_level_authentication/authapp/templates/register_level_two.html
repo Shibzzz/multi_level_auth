@@ -1,0 +1,473 @@
+{% load static %}
+
+<div class="container mt-5">
+    <div class="pattern-authentication">
+        <h2 class="mb-4">Image Pattern Authentication</h2>
+        
+        <!-- Image Upload Section -->
+        <div class="upload-section mb-4">
+            <input type="file" id="imageUpload" accept="image/*" class="form-control mb-2">
+            <button id="splitImage" class="btn btn-primary" disabled>Create Grid</button>
+        </div>
+
+        <!-- Grid Container -->
+        <div class="grid-container" style="display: none;">
+            <!-- Source Grid (Left) -->
+            <div class="grid source-grid" id="sourceGrid">
+                <!-- Grid pieces will be added here -->
+            </div>
+
+            <!-- Target Grid (Right) -->
+            <div class="grid target-grid" id="targetGrid">
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+                <div class="grid-cell"></div>
+            </div>
+        </div>
+
+        <button id="submitPattern" class="btn btn-success mt-3" style="display: none;">Submit Pattern</button>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageUpload = document.getElementById('imageUpload');
+        const splitButton = document.getElementById('splitImage');
+        const sourceGrid = document.getElementById('sourceGrid');
+        const targetGrid = document.getElementById('targetGrid');
+        const gridContainer = document.querySelector('.grid-container');
+        const submitButton = document.getElementById('submitPattern');
+        
+        imageUpload.addEventListener('change', function() {
+            splitButton.disabled = !this.files.length;
+        });
+    
+        splitButton.addEventListener('click', function() {
+            const file = imageUpload.files[0];
+            if (!file) return;
+    
+            const img = new Image();
+            img.onload = function() {
+                sourceGrid.innerHTML = '';
+                const gridSize = 3;
+                
+                for (let i = 0; i < gridSize * gridSize; i++) {
+                    const row = Math.floor(i / gridSize);
+                    const col = i % gridSize;
+                    
+                    const piece = document.createElement('div');
+                    piece.className = 'grid-item';
+                    piece.draggable = true;
+                    piece.dataset.position = i;
+    
+                    const pieceImg = img.cloneNode(true);
+                    pieceImg.style.position = 'absolute';
+                    pieceImg.style.width = `${gridSize * 100}%`;
+                    pieceImg.style.height = `${gridSize * 100}%`;
+                    pieceImg.style.left = `${-col * 100}%`;
+                    pieceImg.style.top = `${-row * 100}%`;
+                    
+                    piece.appendChild(pieceImg);
+                    sourceGrid.appendChild(piece);
+    
+                    // Add drag event listeners to each piece
+                    piece.addEventListener('dragstart', handleDragStart);
+                    piece.addEventListener('dragend', handleDragEnd);
+                }
+    
+                // Clear and create target grid cells
+                targetGrid.innerHTML = '';
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.index = i;
+                    targetGrid.appendChild(cell);
+    
+                    // Add drop event listeners to each cell
+                    cell.addEventListener('dragover', handleDragOver);
+                    cell.addEventListener('dragleave', handleDragLeave);
+                    cell.addEventListener('drop', handleDrop);
+                }
+    
+                gridContainer.style.display = 'flex';
+                submitButton.style.display = 'block';
+            };
+    
+            img.src = URL.createObjectURL(file);
+        });
+    
+        function handleDragStart(e) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.position);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+    
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('dragover');
+        }
+    
+        function handleDragLeave(e) {
+            this.classList.remove('dragover');
+        }
+    
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+    
+            const position = e.dataTransfer.getData('text/plain');
+            const draggedItem = document.querySelector(`.grid-item[data-position="${position}"]`);
+    
+            // Only allow if cell is empty
+            if (!this.hasChildNodes()) {
+                const clone = draggedItem.cloneNode(true);
+                clone.classList.remove('dragging');
+                this.appendChild(clone);
+                this.classList.add('filled');
+                this.dataset.filled = position;
+            }
+        }
+    
+        submitButton.addEventListener('click', function() {
+            const filledCells = document.querySelectorAll('.target-grid .grid-cell[data-filled]');
+            const positions = Array.from(filledCells).map(cell => cell.dataset.filled);
+    
+            if (positions.length !== 2) {
+                alert('Please drag exactly 2 grid pieces to create your pattern');
+                return;
+            }
+    
+            // Create form data
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            formData.append('image', imageUpload.files[0]);
+            positions.forEach(pos => formData.append('dropped_positions[]', pos));
+    
+            // Send data to server
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+    </script>
+    
+    <style>
+    .grid-container {
+        display: none;
+        justify-content: space-around;
+        align-items: start;
+        margin: 40px 0;
+        gap: 50px;
+    }
+    
+    .source-grid, .target-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        gap: 2px;
+        background: #ccc;
+        padding: 2px;
+    }
+    
+    .grid-item {
+        width: 100px;
+        height: 100px;
+        position: relative;
+        overflow: hidden;
+        background: white;
+        border: 1px solid #ccc;
+        cursor: move;
+    }
+    
+    .grid-item img {
+        position: absolute;
+        pointer-events: none;
+    }
+    
+    .grid-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .grid-cell {
+        width: 100px;
+        height: 100px;
+        border: 2px dashed #666;
+        background: white;
+    }
+    
+    .grid-cell.dragover {
+        background: #f0f0f0;
+        border-style: solid;
+    }
+    
+    .grid-cell.filled {
+        border: 2px solid #28a745;
+    }
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .upload-section {
+        margin-bottom: 20px;
+    }
+    </style>
+<!-- Keep the existing HTML structure and CSS, just update the JavaScript part -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageUpload = document.getElementById('imageUpload');
+        const splitButton = document.getElementById('splitImage');
+        const sourceGrid = document.getElementById('sourceGrid');
+        const targetGrid = document.getElementById('targetGrid');
+        const gridContainer = document.querySelector('.grid-container');
+        const submitButton = document.getElementById('submitPattern');
+        
+        imageUpload.addEventListener('change', function() {
+            splitButton.disabled = !this.files.length;
+        });
+    
+        splitButton.addEventListener('click', function() {
+            const file = imageUpload.files[0];
+            if (!file) return;
+    
+            const img = new Image();
+            img.onload = function() {
+                sourceGrid.innerHTML = '';
+                const gridSize = 3;
+                
+                for (let i = 0; i < gridSize * gridSize; i++) {
+                    const row = Math.floor(i / gridSize);
+                    const col = i % gridSize;
+                    
+                    const piece = document.createElement('div');
+                    piece.className = 'grid-item';
+                    piece.draggable = true;
+                    piece.dataset.position = i;
+    
+                    const pieceImg = img.cloneNode(true);
+                    pieceImg.style.position = 'absolute';
+                    pieceImg.style.width = `${gridSize * 100}%`;
+                    pieceImg.style.height = `${gridSize * 100}%`;
+                    pieceImg.style.left = `${-col * 100}%`;
+                    pieceImg.style.top = `${-row * 100}%`;
+                    
+                    piece.appendChild(pieceImg);
+                    sourceGrid.appendChild(piece);
+    
+                    // Add drag event listeners to each piece
+                    piece.addEventListener('dragstart', handleDragStart);
+                    piece.addEventListener('dragend', handleDragEnd);
+                }
+    
+                // Clear and create target grid cells
+                targetGrid.innerHTML = '';
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.index = i;
+                    targetGrid.appendChild(cell);
+    
+                    // Add drop event listeners to each cell
+                    cell.addEventListener('dragover', handleDragOver);
+                    cell.addEventListener('dragleave', handleDragLeave);
+                    cell.addEventListener('drop', handleDrop);
+                }
+    
+                gridContainer.style.display = 'flex';
+                submitButton.style.display = 'block';
+            };
+    
+            img.src = URL.createObjectURL(file);
+        });
+    
+        function handleDragStart(e) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.position);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+    
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('dragover');
+        }
+    
+        function handleDragLeave(e) {
+            this.classList.remove('dragover');
+        }
+    
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+    
+            const position = e.dataTransfer.getData('text/plain');
+            const draggedItem = document.querySelector(`.grid-item[data-position="${position}"]`);
+    
+            // Only allow if cell is empty
+            if (!this.hasChildNodes()) {
+                const clone = draggedItem.cloneNode(true);
+                clone.classList.remove('dragging');
+                this.appendChild(clone);
+                this.classList.add('filled');
+                this.dataset.filled = position;
+            }
+        }
+    
+        submitButton.addEventListener('click', function() {
+            const filledCells = document.querySelectorAll('.target-grid .grid-cell[data-filled]');
+            const positions = Array.from(filledCells).map(cell => cell.dataset.filled);
+    
+            if (positions.length !== 2) {
+                alert('Please drag exactly 2 grid pieces to create your pattern');
+                return;
+            }
+    
+            // Create form data
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            formData.append('image', imageUpload.files[0]);
+            positions.forEach(pos => formData.append('dropped_positions[]', pos));
+    
+            // Send data to server
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+    </script>
+    
+    <style>
+    .grid-container {
+        display: none;
+        justify-content: space-around;
+        align-items: start;
+        margin: 40px 0;
+        gap: 50px;
+    }
+    
+    .source-grid, .target-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        gap: 2px;
+        background: #ccc;
+        padding: 2px;
+    }
+    
+    .grid-item {
+        width: 100px;
+        height: 100px;
+        position: relative;
+        overflow: hidden;
+        background: white;
+        border: 1px solid #ccc;
+        cursor: move;
+    }
+    
+    .grid-item img {
+        position: absolute;
+        pointer-events: none;
+    }
+    
+    .grid-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .grid-cell {
+        width: 100px;
+        height: 100px;
+        border: 2px dashed #666;
+        background: white;
+    }
+    
+    .grid-cell.dragover {
+        background: #f0f0f0;
+        border-style: solid;
+    }
+    
+    .grid-cell.filled {
+        border: 2px solid #28a745;
+    }
+    
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .upload-section {
+        margin-bottom: 20px;
+    }
+    </style>
