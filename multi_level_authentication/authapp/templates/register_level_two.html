@@ -169,13 +169,9 @@
             const filledCells = document.querySelectorAll('.target-grid .grid-cell[data-filled]');
             const pattern = Array.from(filledCells).map(cell => ({
                 gridPosition: cell.dataset.filled,
-                targetPosition: cell.dataset.index
+                targetPosition: cell.dataset.index,
+                placementTime: cell.dataset.placementTime
             }));
-            
-            console.log('Pattern recorded:');
-            pattern.forEach(p => {
-                console.log(`Grid piece ${p.gridPosition} placed in position ${p.targetPosition}`);
-            });
             return pattern;
         }
 
@@ -186,7 +182,6 @@
             const position = e.dataTransfer.getData('text/plain');
             const targetIndex = this.dataset.index;
             
-            // Check if the piece is being placed in its correct sequential position
             if (position !== targetIndex) {
                 showError(`Piece ${position} must be placed in position ${position}`);
                 return;
@@ -194,17 +189,14 @@
     
             const draggedItem = document.querySelector(`.grid-item[data-position="${position}"]`);
     
-            // Only allow if cell is empty
             if (!this.hasChildNodes()) {
                 const clone = draggedItem.cloneNode(true);
                 clone.classList.remove('dragging');
                 this.appendChild(clone);
                 this.classList.add('filled');
                 this.dataset.filled = position;
+                this.dataset.placementTime = Date.now();  // Add timestamp when piece is placed
                 updatePiecesCount();
-                
-                // Log each piece placement
-                console.log(`Placed piece ${position} in position ${targetIndex}`);
             }
         }
     

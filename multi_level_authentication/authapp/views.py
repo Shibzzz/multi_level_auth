@@ -5,6 +5,11 @@ from django.contrib.auth.decorators import login_required
 from .models import UserProfile, AuthenticationSession
 from .forms import UserRegistrationForm
 import random
+import logging
+import json
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 def index(request):
     # If user is already authenticated, redirect to dashboard
@@ -29,9 +34,21 @@ def register(request):
     return render(request, 'register.html', {'form': form})
 
 def register_level_two(request):
-    
-
     if request.method == 'POST':
+        pattern = json.loads(request.POST.get('pattern'))
+        
+        # Sort pattern by placement time to show actual placement order
+        sorted_pattern = sorted(pattern, key=lambda x: int(x.get('placementTime', 0)))
+        
+        logger.info("\n=== Pattern Registration Details ===")
+        logger.info(f"Registration Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("Pattern Sequence (in order of placement):")
+        
+        for index, piece in enumerate(sorted_pattern, 1):
+            logger.info(f"Step {index}: Grid piece {piece['gridPosition']} → Position {piece['targetPosition']}")
+        
+        logger.info("=" * 35 + "\n")
+        
         # Get the uploaded image
         if 'image' not in request.FILES:
             return JsonResponse({'status': 'error', 'message': 'No image uploaded'})
