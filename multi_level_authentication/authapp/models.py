@@ -3,11 +3,15 @@ from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    phone = models.CharField(max_length=15)
+   
     pattern_image = models.ImageField(upload_to='pattern_images/', null=True, blank=True)
-    pattern_position_1 = models.IntegerField(null=True)
-    pattern_position_2 = models.IntegerField(null=True)
-    gesture_pattern = models.CharField(max_length=100)
+    pattern = models.TextField(null=True, blank=True)  # This will store the JSON pattern
+    pattern_position_1 = models.IntegerField(null=True, blank=True)
+    pattern_position_2 = models.IntegerField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.user.username}'s profile"
+
 
 class AuthenticationSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

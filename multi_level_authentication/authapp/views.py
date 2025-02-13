@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.http import JsonResponse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from .models import UserProfile, AuthenticationSession
 from .forms import UserRegistrationForm
+from django.core.files.storage import FileSystemStorage
 import random
 import logging
 import json
@@ -20,14 +22,26 @@ def index(request):
 
 def register(request):
     if request.method == 'POST':
-        # Store level 1 data in session
-        request.session['registration_data'] = {
-            'username': request.POST.get('username'),
-            'email': request.POST.get('email'),
-            'password1': request.POST.get('password1'),
-            'password2': request.POST.get('password2'),
-        }
-        return redirect('register_level_two')
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            # Store the cleaned data in session
+            request.session['registration_data'] = {
+                'username': form.cleaned_data['username'],
+                'email': form.cleaned_data['email'],
+                'password1': form.cleaned_data['password1'],
+                'password2': form.cleaned_data['password2'],
+            }
+            
+            # Debug log
+            logger.info("Registration data stored in session, redirecting to level two")
+            
+            # Use the correct URL name that matches urls.py
+            return redirect('register_level_two')
+        else:
+            # Log form errors for debugging
+            logger.error(f"Form validation errors: {form.errors}")
+            messages.error(request, 'Please correct the errors below.')
+            return render(request, 'register.html', {'form': form})
     else:
         form = UserRegistrationForm()
     
@@ -37,52 +51,65 @@ def register_level_two(request):
     if request.method == 'POST':
         pattern = json.loads(request.POST.get('pattern'))
         
-        # Sort pattern by placement time to show actual placement order
+        # Sort pattern by placement time
         sorted_pattern = sorted(pattern, key=lambda x: int(x.get('placementTime', 0)))
-        
-        logger.info("\n=== Pattern Registration Details ===")
-        logger.info(f"Registration Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info("Pattern Sequence (in order of placement):")
-        
-        for index, piece in enumerate(sorted_pattern, 1):
-            logger.info(f"Step {index}: Grid piece {piece['gridPosition']} → Position {piece['targetPosition']}")
-        
-        logger.info("=" * 35 + "\n")
         
         # Get the uploaded image
         if 'image' not in request.FILES:
             return JsonResponse({'status': 'error', 'message': 'No image uploaded'})
             
         image = request.FILES['image']
-        dropped_positions = request.POST.getlist('dropped_positions[]')
-        validation_points = request.POST.getlist('validation_points[]')
-        
-        # Validate inputs
-        if len(dropped_positions) != 2:
-            return JsonResponse({'status': 'error', 'message': 'Please select exactly 2 grid positions'})
         
         try:
-            # Save the image
-            fs = FileSystemStorage()
-            filename = fs.save(f'pattern_images/{request.user.id}_{image.name}', image)
+            # Get registration data from session
+            registration_data = request.session.get('registration_data')
+            if not registration_data:
+                return JsonResponse({'status': 'error', 'message': 'Registration data not found in session'})
             
-            # Save pattern positions
-            user_profile = UserProfile.objects.get_or_create(user=request.user)[0]
-            user_profile.pattern_image = filename
-            user_profile.pattern_position_1 = int(dropped_positions[0])
-            user_profile.pattern_position_2 = int(dropped_positions[1])
-            user_profile.save()
-            
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Pattern successfully registered!',
-                'redirect_url': '/register/level-three/'  # Adjust this URL as needed
-            })
+            # Create user first
+            form = UserRegistrationForm(registration_data)
+            if form.is_valid():
+                # Save the user
+                user = form.save()
+                
+                # Now we have a user ID, we can save the file
+                fs = FileSystemStorage()
+                # Generate a safe filename
+                ext = image.name.split('.')[-1]  # Get file extension
+                filename = f'pattern_images/user_{user.id}_pattern.{ext}'
+                filename = fs.save(filename, image)
+                
+                # Create and save user profile
+                user_profile = UserProfile.objects.create(
+                    user=user,
+                    pattern_image=filename,
+                    pattern=json.dumps(sorted_pattern)
+                )
+                
+                # Clear the session data
+                if 'registration_data' in request.session:
+                    del request.session['registration_data']
+                
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Pattern successfully registered!',
+                    'redirect_url': '/register/level-three/'
+                })
+            else:
+                logger.error(f"Form validation errors: {form.errors}")
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Invalid registration data: {form.errors}'
+                })
             
         except Exception as e:
+            logger.error(f"Error in register_level_two: {str(e)}")
             return JsonResponse({'status': 'error', 'message': str(e)})
     
     return render(request, 'register_level_two.html')
+
+def register_level_three(request):  
+    return render(request, 'register_level_three.html')
 
 def generate_random_grid_images():
     """Generate random images for the grid"""
