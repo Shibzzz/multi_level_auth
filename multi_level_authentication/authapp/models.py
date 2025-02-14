@@ -3,9 +3,8 @@ from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-   
-    pattern_image = models.ImageField(upload_to='pattern_images/', null=True, blank=True)
-    pattern = models.TextField(null=True, blank=True)  # This will store the JSON pattern
+    pattern_image = models.BinaryField(null=True, blank=True)
+    pattern = models.TextField(null=True, blank=True)
     pattern_position_1 = models.IntegerField(null=True, blank=True)
     pattern_position_2 = models.IntegerField(null=True, blank=True)
     

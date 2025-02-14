@@ -50,8 +50,6 @@ def register(request):
 def register_level_two(request):
     if request.method == 'POST':
         pattern = json.loads(request.POST.get('pattern'))
-        
-        # Sort pattern by placement time
         sorted_pattern = sorted(pattern, key=lambda x: int(x.get('placementTime', 0)))
         
         # Get the uploaded image
@@ -66,23 +64,18 @@ def register_level_two(request):
             if not registration_data:
                 return JsonResponse({'status': 'error', 'message': 'Registration data not found in session'})
             
-            # Create user first
+            # Create user
             form = UserRegistrationForm(registration_data)
             if form.is_valid():
-                # Save the user
                 user = form.save()
                 
-                # Now we have a user ID, we can save the file
-                fs = FileSystemStorage()
-                # Generate a safe filename
-                ext = image.name.split('.')[-1]  # Get file extension
-                filename = f'pattern_images/user_{user.id}_pattern.{ext}'
-                filename = fs.save(filename, image)
+                # Read image data as binary
+                image_data = image.read()
                 
-                # Create and save user profile
+                # Create and save user profile with binary image data
                 user_profile = UserProfile.objects.create(
                     user=user,
-                    pattern_image=filename,
+                    pattern_image=image_data,  # Store binary data directly
                     pattern=json.dumps(sorted_pattern)
                 )
                 
