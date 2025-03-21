@@ -321,7 +321,9 @@
             .then(data => {
                 if (data.status === 'success') {
                     console.log('Pattern saved successfully!');
-                    window.location.href = data.redirect_url;
+                    console.log('Redirecting to:', data.redirect_url);
+                    // Force a hard redirect to the new URL
+                    window.location.replace(data.redirect_url);
                 } else {
                     console.error('Pattern save failed:', data.message);
                     showError(data.message);
