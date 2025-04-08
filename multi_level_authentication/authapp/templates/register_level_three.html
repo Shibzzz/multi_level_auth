@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face and Gesture Registration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .video-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            margin: 0 auto;
+        }
+        #video, #overlay {
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        #overlay {
+            z-index: 1;
+        }
+        .step-indicator {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .step-active {
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+        .step-complete {
+            background-color: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="text-center">Face and Gesture Registration</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Step indicators -->
+                        <div id="faceStep" class="step-indicator">
+                            <h5>Step 1: Face Registration</h5>
+                            <p>Look directly at the camera until your face is detected and saved.</p>
+                        </div>
+                        <div id="gestureStep" class="step-indicator">
+                            <h5>Step 2: Gesture Registration</h5>
+                            <p>Perform these gestures in any order:</p>
+                            <ul>
+                                <li>👍 Thumbs Up</li>
+                                <li>👎 Thumbs Down</li>
+                                <li>✌️ Victory Sign</li>
+                            </ul>
+                        </div>
+
+                        <div class="text-center mb-3 video-container">
+                            <video id="video" width="640" height="480" autoplay style="display: none;"></video>
+                            <canvas id="canvas" style="display: none;"></canvas>
+                            <canvas id="overlay" width="640" height="480" style="display: none;"></canvas>
+                        </div>
+                        <div class="progress mb-3" style="display: none;">
+                            <div id="gestureProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div id="status" class="alert alert-info">
+                            Please click Start Registration to begin.
+                        </div>
+                        <div id="error" class="alert alert-danger" style="display: none;"></div>
+                        <div class="text-center">
+                            <button id="startButton" class="btn btn-primary">Start Registration</button>
+                            <button id="stopButton" class="btn btn-danger" style="display: none;">Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let isCapturing = false;
+    let captureInterval = null;
+    let faceRegistered = false;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const overlay = document.getElementById('overlay');
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const statusDiv = document.getElementById('status');
+    const errorDiv = document.getElementById('error');
+    const gestureProgress = document.getElementById('gestureProgress');
+    const faceStep = document.getElementById('faceStep');
+    const gestureStep = document.getElementById('gestureStep');
+    let gestureCount = 0;
+    let stream = null;
+
+    // Initially set step indicators
+    faceStep.classList.add('step-active');
+    gestureStep.style.opacity = '0.5';
+
+    async function setupCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: {
+                    width: 640,
+                    height: 480
+                } 
+            });
+            video.srcObject = stream;
+            return true;
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            showError('Unable to access camera. Please ensure camera permissions are granted.');
+            return false;
+        }
+    }
+
+    function showStatus(message) {
+        statusDiv.style.display = 'block';
+        statusDiv.textContent = message;
+    }
+
+    function showError(message) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = message;
+    }
+
+    function clearError() {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+    }
+
+    function updateProgress(count) {
+        const progress = (count / 3) * 100;
+        gestureProgress.style.width = `${progress}%`;
+        gestureProgress.textContent = `${count}/3 Gestures Recorded`;
+    }
+
+    function drawDetections(data) {
+        const ctx = overlay.getContext('2d');
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        
+        if (data.face_location) {
+            const [top, right, bottom, left] = data.face_location;
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(left, top, right - left, bottom - top);
+        }
+        
+        if (data.hand_landmarks) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.fillStyle = '#00ff00';
+            
+            for (const connection of data.hand_landmarks.connections) {
+                const [start, end] = connection;
+                ctx.beginPath();
+                ctx.moveTo(
+                    data.hand_landmarks.points[start].x * overlay.width,
+                    data.hand_landmarks.points[start].y * overlay.height
+                );
+                ctx.lineTo(
+                    data.hand_landmarks.points[end].x * overlay.width,
+                    data.hand_landmarks.points[end].y * overlay.height
+                );
+                ctx.stroke();
+            }
+            
+            for (const point of data.hand_landmarks.points) {
+                ctx.beginPath();
+                ctx.arc(
+                    point.x * overlay.width,
+                    point.y * overlay.height,
+                    3,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+            }
+        }
+    }
+
+    async function captureAndSendFrame() {
+        if (!isCapturing) return;
+
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('frame', blob);
+
+            try {
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    clearError();
+                    drawDetections(data);
+                    
+                    if (data.face_detected) {
+                        if (!faceRegistered && data.debug_info && data.debug_info.face_encoding_saved) {
+                            faceRegistered = true;
+                            faceStep.classList.remove('step-active');
+                            faceStep.classList.add('step-complete');
+                            gestureStep.classList.add('step-active');
+                            gestureStep.style.opacity = '1';
+                            showStatus('Face registered! Now please perform the required gestures.');
+                        }
+
+                        if (faceRegistered) {
+                            if (data.gesture_detected) {
+                                gestureCount = data.gesture_count;
+                                updateProgress(gestureCount);
+                                showStatus(`Gesture "${data.gesture}" recorded! (${gestureCount}/3)`);
+                            } else {
+                                showStatus('Please perform one of these gestures: thumbs up, thumbs down, or victory sign');
+                            }
+                        } else {
+                            showStatus('Face detected! Please keep still while we save your face data.');
+                        }
+                        
+                        if (data.registration_complete) {
+                            stopCapture();
+                            gestureStep.classList.remove('step-active');
+                            gestureStep.classList.add('step-complete');
+                            showStatus('Registration complete! Redirecting...');
+                            window.location.replace(data.redirect_url);
+                        }
+                    } else {
+                        showStatus('Please look directly at the camera.');
+                    }
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                console.error('Error sending frame:', error);
+                showError('Network error. Please try again.');
+            }
+        }, 'image/jpeg');
+    }
+
+    function startCapture() {
+        if (!isCapturing) {
+            isCapturing = true;
+            startButton.style.display = 'none';
+            stopButton.style.display = 'inline-block';
+            video.style.display = 'block';
+            overlay.style.display = 'block';
+            gestureProgress.parentElement.style.display = 'block';
+            showStatus('Starting camera...');
+            
+            setupCamera().then(success => {
+                if (success) {
+                    video.addEventListener('loadedmetadata', () => {
+                        overlay.width = video.videoWidth;
+                        overlay.height = video.videoHeight;
+                        captureInterval = setInterval(captureAndSendFrame, 1000);
+                        showStatus('Looking for face...');
+                    });
+                }
+            });
+        }
+    }
+
+    function stopCapture() {
+        if (isCapturing) {
+            isCapturing = false;
+            clearInterval(captureInterval);
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            video.style.display = 'none';
+            overlay.style.display = 'none';
+            gestureProgress.parentElement.style.display = 'none';
+            const ctx = overlay.getContext('2d');
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            startButton.style.display = 'inline-block';
+            stopButton.style.display = 'none';
+            showStatus('Registration stopped');
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    startButton.addEventListener('click', startCapture);
+    stopButton.addEventListener('click', stopCapture);
+    window.addEventListener('beforeunload', stopCapture);
+    </script>
+</body>
+</html>

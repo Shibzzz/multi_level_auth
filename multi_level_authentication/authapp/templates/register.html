@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Level 1</title>
+    <style>
+        .register-container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin: 20px 0;
+        }
+
+        .grid-cell {
+            aspect-ratio: 1;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-cell.selected {
+            background-color: rgba(0, 123, 255, 0.3);
+        }
+
+        #image-preview {
+            max-width: 300px;
+            margin: 10px 0;
+        }
+
+        .pattern-preview {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .error-message {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            color: red;
+            margin-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .next-button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        .next-button:hover {
+            background-color: #218838;
+        }
+        .password-mismatch {
+            color: red;
+            font-size: 0.875rem;
+            margin-top: -8px;
+            margin-bottom: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h2>Register - Level 1</h2>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" onsubmit="return validatePasswords()">
+            {% csrf_token %}
+            <!-- Only show username, email, password fields -->
+            {% for field in form %}
+                {% if field.name in 'username,email,password1,password2' %}
+                    <div class="form-group">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.name == 'password2' %}
+                            <div id="password-mismatch" class="password-mismatch">Passwords do not match!</div>
+                        {% endif %}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <div class="error">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            
+            <button type="submit" name="next_level">Continue to Level 2 →</button>
+        </form>
+        
+        <div class="login-link">
+            <p>Already have an account? <a href="{% url 'level_one' %}">Login here</a></p>
+        </div>
+    </div>
+
+    <script>
+        function validatePasswords() {
+            const password1 = document.querySelector('input[name="password1"]').value;
+            const password2 = document.querySelector('input[name="password2"]').value;
+            const mismatchMessage = document.getElementById('password-mismatch');
+
+            if (password1 !== password2) {
+                mismatchMessage.style.display = 'block';
+                return false;
+            }
+            mismatchMessage.style.display = 'none';
+            return true;
+        }
+
+        // Real-time validation
+        document.querySelector('input[name="password2"]').addEventListener('input', function() {
+            const password1 = document.querySelector('input[name="password1"]').value;
+            const password2 = this.value;
+            const mismatchMessage = document.getElementById('password-mismatch');
+            
+            if (password1 !== password2) {
+                mismatchMessage.style.display = 'block';
+            } else {
+                mismatchMessage.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
