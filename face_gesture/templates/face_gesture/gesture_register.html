@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gesture Registration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .video-container {
+            margin: 20px 0;
+            position: relative;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        #counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gesture Registration</h1>
+    <div class="video-container">
+        <video id="video" width="640" height="480" autoplay playsinline></video>
+        <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+        <div id="counter"></div>
+    </div>
+    <div>
+        <p>We'll capture 5 samples of your gesture.</p>
+        <p>Press the button below to start capturing.</p>
+        <button id="captureButton" class="button">Capture Gesture</button>
+    </div>
+    <div id="status" class="status" style="display: none;"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const captureButton = document.getElementById('captureButton');
+        const statusDiv = document.getElementById('status');
+        const counterDiv = document.getElementById('counter');
+        const NUM_SAMPLES = 5;
+        const capturedImages = [];
+
+        // Initialize camera with error handling
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640,
+                        height: 480,
+                        facingMode: 'user'
+                    } 
+                });
+                video.srcObject = stream;
+                await video.play();  // Ensure video is playing
+                captureButton.disabled = false;
+                updateStatus('Camera ready. Click "Capture Gesture" to begin.', 'success');
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                updateStatus('Error accessing camera. Please make sure your camera is connected and you\'ve granted permission.', 'error');
+                captureButton.disabled = true;
+            }
+        }
+
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        function updateCounter() {
+            counterDiv.textContent = `${capturedImages.length}/${NUM_SAMPLES} captured`;
+        }
+
+        captureButton.addEventListener('click', async function() {
+            if (capturedImages.length < NUM_SAMPLES) {
+                // Capture frame
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/jpeg');
+                capturedImages.push(imageData);
+                updateCounter();
+                updateStatus(`Captured ${capturedImages.length}/${NUM_SAMPLES}`, 'success');
+
+                // If we have all samples, send them to server
+                if (capturedImages.length === NUM_SAMPLES) {
+                    try {
+                        const response = await fetch(window.location.href, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': getCookie('csrftoken')
+                            },
+                            body: JSON.stringify({
+                                images: capturedImages
+                            })
+                        });
+
+                        const result = await response.json();
+                        updateStatus(result.message, result.status === 'success' ? 'success' : 'error');
+                        if (result.status === 'success') {
+                            captureButton.disabled = true;
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        updateStatus('Error saving gestures. Please try again.', 'error');
+                    }
+                }
+            }
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Initialize camera when page loads
+        initCamera();
+        updateCounter();
+    </script>
+</body>
+</html>

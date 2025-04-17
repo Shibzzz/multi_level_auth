@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .video-container {
+            margin: 20px 0;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Face Verification</h1>
+    <div class="video-container">
+        <video id="video" width="640" height="480" autoplay></video>
+    </div>
+    <div>
+        <p>Position your face in front of the camera.</p>
+        <p>Press 'q' to quit the verification process.</p>
+        <button id="startVerification" class="button">Start Verification</button>
+    </div>
+    <div id="status" class="status" style="display: none;"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const startButton = document.getElementById('startVerification');
+        const statusDiv = document.getElementById('status');
+
+        // Start video stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera:", err);
+                statusDiv.textContent = "Error accessing camera. Please make sure your camera is connected and you've granted permission.";
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status error';
+            });
+
+        startButton.addEventListener('click', async function() {
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                const data = await response.json();
+                statusDiv.style.display = 'block';
+                statusDiv.className = `status ${data.status === 'success' ? 'success' : 'error'}`;
+                statusDiv.textContent = data.message;
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'An error occurred. Please try again.';
+            }
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html> 

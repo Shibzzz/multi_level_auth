@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .video-container {
+            margin: 20px auto;
+            width: 640px;
+            height: 480px;
+            border: 2px solid #ccc;
+            position: relative;
+        }
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            background-color: #666;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        #status {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Verification</h1>
+        <p>User ID: {{ user_id }}</p>
+        
+        <div class="video-container">
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="overlay"></canvas>
+        </div>
+        
+        <div>
+            <button id="startButton">Start Camera</button>
+            <button id="verifyButton" disabled>Start Verification</button>
+        </div>
+        
+        <div id="status" style="display: none;"></div>
+        <div id="fpsCounter">FPS: 0.0</div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const overlay = document.getElementById('overlay');
+        const startButton = document.getElementById('startButton');
+        const verifyButton = document.getElementById('verifyButton');
+        const statusDiv = document.getElementById('status');
+        let stream = null;
+        let isVerifying = false;
+        let verificationInterval = null;
+
+        // Set up overlay canvas
+        overlay.width = 640;
+        overlay.height = 480;
+        const ctx = overlay.getContext('2d');
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                startButton.disabled = true;
+                verifyButton.disabled = false;
+                showStatus('Camera started successfully', 'success');
+            } catch (err) {
+                showStatus('Error accessing camera: ' + err.message, 'error');
+            }
+        });
+
+        verifyButton.addEventListener('click', () => {
+            if (!stream) return;
+            
+            if (!isVerifying) {
+                startVerification();
+                verifyButton.textContent = 'Stop Verification';
+            } else {
+                stopVerification();
+                verifyButton.textContent = 'Start Verification';
+            }
+            isVerifying = !isVerifying;
+        });
+
+        function startVerification() {
+            let lastProcessingTime = performance.now();
+            let frameCount = 0;
+            let lastFpsUpdate = performance.now();
+            
+            verificationInterval = setInterval(async () => {
+                const currentTime = performance.now();
+                // Limit to ~15 FPS for better performance
+                if (currentTime - lastProcessingTime < 66) {  // 1000ms / 15fps ≈ 66ms
+                    return;
+                }
+                
+                frameCount++;
+                if (currentTime - lastFpsUpdate >= 1000) {
+                    const fps = frameCount / ((currentTime - lastFpsUpdate) / 1000);
+                    document.getElementById('fpsCounter').textContent = `FPS: ${fps.toFixed(1)}`;
+                    frameCount = 0;
+                    lastFpsUpdate = currentTime;
+                }
+                
+                lastProcessingTime = currentTime;
+
+                // Create a canvas to capture the frame
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const tempCtx = canvas.getContext('2d');
+                tempCtx.drawImage(videoElement, 0, 0);
+
+                // Convert the frame to blob
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'frame.jpg');
+
+                    try {
+                        const response = await fetch(window.location.href, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            }
+                        });
+
+                        const data = await response.json();
+                        
+                        // Clear previous drawings
+                        ctx.clearRect(0, 0, overlay.width, overlay.height);
+                        
+                        if (data.face_location) {
+                            // Draw face rectangle
+                            ctx.strokeStyle = data.matched ? '#00ff00' : '#ff0000';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(
+                                data.face_location.left,
+                                data.face_location.top,
+                                data.face_location.right - data.face_location.left,
+                                data.face_location.bottom - data.face_location.top
+                            );
+                            
+                            // Draw verification status
+                            ctx.font = '16px Arial';
+                            ctx.fillStyle = data.matched ? '#00ff00' : '#ff0000';
+                            const text = data.matched ? 
+                                `✓ (${data.distance.toFixed(2)})` : 
+                                `✗ (${data.distance.toFixed(2)})`;
+                            ctx.fillText(text, data.face_location.left, data.face_location.top - 10);
+                        }
+                        
+                        showStatus(data.message, data.status);
+                    } catch (err) {
+                        showStatus('Error during verification: ' + err.message, 'error');
+                    }
+                }, 'image/jpeg', 0.8);  // Reduced JPEG quality for better performance
+            }, 66);  // ~15 FPS
+        }
+
+        function stopVerification() {
+            if (verificationInterval) {
+                clearInterval(verificationInterval);
+                verificationInterval = null;
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+            }
+        }
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+        }
+
+        function stopCamera() {
+            stopVerification();
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                videoElement.srcObject = null;
+            }
+        }
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', stopCamera);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Registration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        .video-container {
+            margin: 20px auto;
+            width: 640px;
+            height: 480px;
+            border: 2px solid #ccc;
+            position: relative;
+        }
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            background-color: #666;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 10px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        #status {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 18px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .progress {
+            margin: 20px auto;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            max-width: 400px;
+        }
+        .progress-circles {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #4CAF50;
+            background-color: white;
+        }
+        .circle.filled {
+            background-color: #4CAF50;
+        }
+        .instructions {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 72px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Face Registration</h1>
+        <p>User ID: {{ user_id }}</p>
+        
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>We'll capture 5 different angles of your face</li>
+                <li>Follow the instructions for each capture</li>
+                <li>Stay still when the countdown appears</li>
+                <li>Make sure your face is clearly visible</li>
+            </ul>
+        </div>
+
+        <div class="progress">
+            <h3>Registration Progress</h3>
+            <div class="progress-circles">
+                <div class="circle" data-position="1"></div>
+                <div class="circle" data-position="2"></div>
+                <div class="circle" data-position="3"></div>
+                <div class="circle" data-position="4"></div>
+                <div class="circle" data-position="5"></div>
+            </div>
+            <p id="captureInstruction">Click "Start Camera" to begin</p>
+        </div>
+        
+        <div class="video-container">
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="overlay"></canvas>
+            <div id="countdown" class="countdown"></div>
+        </div>
+        
+        <div>
+            <button id="startButton">Start Camera</button>
+            <button id="captureButton" disabled>Capture Face</button>
+        </div>
+        
+        <div id="status" style="display: none;"></div>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const overlay = document.getElementById('overlay');
+        const startButton = document.getElementById('startButton');
+        const captureButton = document.getElementById('captureButton');
+        const statusDiv = document.getElementById('status');
+        const countdownDiv = document.getElementById('countdown');
+        const ctx = overlay.getContext('2d');
+        
+        let stream = null;
+        let captureCount = 0;
+        const totalCaptures = 5;
+        const captureInstructions = [
+            "Look straight at the camera",
+            "Turn your head slightly to the left",
+            "Turn your head slightly to the right",
+            "Tilt your head slightly up",
+            "Tilt your head slightly down"
+        ];
+
+        // Set up overlay canvas
+        overlay.width = 640;
+        overlay.height = 480;
+
+        function updateProgress() {
+            document.querySelectorAll('.circle').forEach((circle, index) => {
+                if (index < captureCount) {
+                    circle.classList.add('filled');
+                } else {
+                    circle.classList.remove('filled');
+                }
+            });
+            
+            const instruction = document.getElementById('captureInstruction');
+            if (captureCount < totalCaptures) {
+                instruction.textContent = captureInstructions[captureCount];
+            } else {
+                instruction.textContent = "Registration complete!";
+            }
+        }
+
+        async function startCountdown() {
+            captureButton.disabled = true;
+            for (let i = 3; i > 0; i--) {
+                countdownDiv.style.display = 'block';
+                countdownDiv.textContent = i;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            countdownDiv.style.display = 'none';
+            return captureFrame();
+        }
+
+        async function captureFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const tempCtx = canvas.getContext('2d');
+            tempCtx.drawImage(videoElement, 0, 0);
+
+            return new Promise((resolve) => {
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'frame.jpg');
+                    formData.append('capture_number', captureCount + 1);
+
+                    try {
+                        const response = await fetch(window.location.href, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            }
+                        });
+
+                        const data = await response.json();
+                        if (data.status === 'success') {
+                            captureCount++;
+                            updateProgress();
+                            
+                            if (captureCount < totalCaptures) {
+                                showStatus('Capture ' + captureCount + ' of ' + totalCaptures + ' successful', 'success');
+                                captureButton.disabled = false;
+                            } else {
+                                showStatus('Registration completed successfully!', 'success');
+                                stopCamera();
+                            }
+                        } else {
+                            showStatus(data.message, 'error');
+                            captureButton.disabled = false;
+                        }
+                        resolve(data.status === 'success');
+                    } catch (err) {
+                        showStatus('Error during capture: ' + err.message, 'error');
+                        captureButton.disabled = false;
+                        resolve(false);
+                    }
+                }, 'image/jpeg');
+            });
+        }
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                startButton.disabled = true;
+                captureButton.disabled = false;
+                showStatus('Camera started successfully', 'success');
+                updateProgress();
+            } catch (err) {
+                showStatus('Error accessing camera: ' + err.message, 'error');
+            }
+        });
+
+        captureButton.addEventListener('click', () => {
+            if (!stream) return;
+            startCountdown();
+        });
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            statusDiv.style.display = 'block';
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                videoElement.srcObject = null;
+                captureButton.disabled = true;
+            }
+        }
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', stopCamera);
+    </script>
+</body>
+</html> 
