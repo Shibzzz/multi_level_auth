@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% load form_tags %}
+
+{% block title %}Register Face - Level Three Authentication{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mt-5">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="text-center">Register - Level Three (Face)</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-center text-muted mb-4">Register your face for biometric authentication (Step 3 of 3)</p>
+                    
+                    <div class="progress mb-4">
+                        <div class="progress-bar" role="progressbar" style="width: 75%;" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">Step 3 of 3 (Part 1)</div>
+                    </div>
+                    
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="alert alert-info mb-4">
+                        <h5 class="alert-heading">Instructions:</h5>
+                        <ol>
+                            <li>Make sure you are in a well-lit area</li>
+                            <li>Position your face in the center of the camera</li>
+                            <li>We'll capture 5 different angles of your face</li>
+                            <li>Follow the on-screen instructions for each pose</li>
+                            <li>Stay still when the countdown appears</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="video-container mb-4" style="max-width: 640px; margin: 0 auto; position: relative;">
+                            <video id="videoElement" autoplay playsinline style="width: 100%; border: 2px solid #ccc;"></video>
+                            <canvas id="overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                            <div id="countdown" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 72px; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); display: none;"></div>
+                        </div>
+                        
+                        <div class="capture-progress mb-3">
+                            <div class="d-flex justify-content-center mb-2">
+                                <span class="badge rounded-pill bg-secondary mx-1" id="capture-badge-1">1</span>
+                                <span class="badge rounded-pill bg-secondary mx-1" id="capture-badge-2">2</span>
+                                <span class="badge rounded-pill bg-secondary mx-1" id="capture-badge-3">3</span>
+                                <span class="badge rounded-pill bg-secondary mx-1" id="capture-badge-4">4</span>
+                                <span class="badge rounded-pill bg-secondary mx-1" id="capture-badge-5">5</span>
+                            </div>
+                            <p id="captureInstruction" class="text-center">Click "Start Camera" to begin</p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center">
+                            <button id="startButton" class="btn btn-primary me-2">Start Camera</button>
+                            <button id="captureButton" class="btn btn-success" disabled>Capture Face</button>
+                        </div>
+                        
+                        <div id="status" class="alert mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <a href="{% url 'register_cancel' %}" class="btn btn-outline-secondary btn-sm">Cancel Registration</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const videoElement = document.getElementById('videoElement');
+    const overlay = document.getElementById('overlay');
+    const startButton = document.getElementById('startButton');
+    const captureButton = document.getElementById('captureButton');
+    const statusDiv = document.getElementById('status');
+    const countdownDiv = document.getElementById('countdown');
+    const ctx = overlay.getContext('2d');
+    
+    let stream = null;
+    let captureCount = 0;
+    const totalCaptures = 5;
+    const captureInstructions = [
+        "Look straight at the camera",
+        "Turn your head slightly to the left",
+        "Turn your head slightly to the right",
+        "Tilt your head slightly up",
+        "Tilt your head slightly down"
+    ];
+
+    // Set up overlay canvas
+    function setupCanvas() {
+        overlay.width = videoElement.videoWidth;
+        overlay.height = videoElement.videoHeight;
+    }
+
+    function updateProgress() {
+        for (let i = 1; i <= totalCaptures; i++) {
+            const badge = document.getElementById(`capture-badge-${i}`);
+            if (i <= captureCount) {
+                badge.classList.remove('bg-secondary');
+                badge.classList.add('bg-success');
+            } else {
+                badge.classList.remove('bg-success');
+                badge.classList.add('bg-secondary');
+            }
+        }
+        
+        const instruction = document.getElementById('captureInstruction');
+        if (captureCount < totalCaptures) {
+            instruction.textContent = captureInstructions[captureCount];
+        } else {
+            instruction.textContent = "Registration complete! Redirecting...";
+            setTimeout(() => {
+                window.location.href = "{% url 'register_gesture_level_three' %}";
+            }, 2000);
+        }
+    }
+
+    async function startCountdown() {
+        captureButton.disabled = true;
+        for (let i = 3; i > 0; i--) {
+            countdownDiv.style.display = 'block';
+            countdownDiv.textContent = i;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        countdownDiv.style.display = 'none';
+        return captureFrame();
+    }
+
+    async function captureFrame() {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const tempCtx = canvas.getContext('2d');
+        tempCtx.drawImage(videoElement, 0, 0);
+
+        return new Promise((resolve) => {
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('frame', blob, 'frame.jpg');
+                formData.append('capture_number', captureCount + 1);
+
+                try {
+                    const response = await fetch("{% url 'register_face_level_three_api' %}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        captureCount++;
+                        updateProgress();
+                        
+                        if (captureCount < totalCaptures) {
+                            showStatus('Capture ' + captureCount + ' of ' + totalCaptures + ' successful', 'success');
+                            captureButton.disabled = false;
+                        } else {
+                            showStatus('Face registration completed successfully!', 'success');
+                            stopCamera();
+                        }
+                    } else {
+                        showStatus(data.message, 'error');
+                        captureButton.disabled = false;
+                    }
+                    resolve(data.status === 'success');
+                } catch (err) {
+                    showStatus('Error during capture: ' + err.message, 'error');
+                    captureButton.disabled = false;
+                    resolve(false);
+                }
+            }, 'image/jpeg');
+        });
+    }
+
+    startButton.addEventListener('click', async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
+            videoElement.onloadedmetadata = function() {
+                setupCanvas();
+            };
+            startButton.disabled = true;
+            captureButton.disabled = false;
+            showStatus('Camera started successfully', 'success');
+            updateProgress();
+        } catch (err) {
+            showStatus('Error accessing camera: ' + err.message, 'error');
+        }
+    });
+
+    captureButton.addEventListener('click', () => {
+        if (!stream) return;
+        startCountdown();
+    });
+
+    function showStatus(message, type) {
+        statusDiv.textContent = message;
+        statusDiv.className = type === 'success' ? 'alert alert-success mt-3' : 'alert alert-danger mt-3';
+        statusDiv.style.display = 'block';
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+            videoElement.srcObject = null;
+            captureButton.disabled = true;
+        }
+    }
+
+    // Clean up when leaving the page
+    window.addEventListener('beforeunload', stopCamera);
+</script>
+{% endblock %} 

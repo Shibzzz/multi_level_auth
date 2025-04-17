@@ -11,19 +11,23 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">Biometric Auth</a>
+            <a class="navbar-brand" href="{% url 'home' %}">Biometric Auth</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'home' %}">Home</a>
+                    </li>
+                    {% if user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Face Authentication
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="/face/register/user1/">Register Face</a></li>
-                            <li><a class="dropdown-item" href="/face/verify/user1/">Verify Face</a></li>
+                            <li><a class="dropdown-item" href="{% url 'register_face' user.username %}">Register Face</a></li>
+                            <li><a class="dropdown-item" href="{% url 'verify_face' user.username %}">Verify Face</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -31,10 +35,32 @@
                             Gesture Authentication
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdown2">
-                            <li><a class="dropdown-item" href="/gesture/register-direct/user1/">Register Gesture</a></li>
-                            <li><a class="dropdown-item" href="/gesture/verify-direct/user1/">Verify Gesture</a></li>
+                            <li><a class="dropdown-item" href="{% url 'register_gesture_direct' user.username %}">Register Gesture</a></li>
+                            <li><a class="dropdown-item" href="{% url 'verify_gesture_direct' user.username %}">Verify Gesture</a></li>
                         </ul>
                     </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="{% url 'dashboard' %}">Dashboard</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'level_one' %}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'register' %}">Register</a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>

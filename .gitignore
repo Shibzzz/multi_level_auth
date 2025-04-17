@@ -1,0 +1,14 @@
+# Virtual Environment
+env/
+venv/
+ENV/
+*.env
+
+# System files
+/faces
+/gestures
+/static
+/captured_faces
+/faces
+/gestures
+/user1_encoding.npy

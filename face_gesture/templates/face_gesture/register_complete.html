@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Registration Complete{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mt-5">
+                <div class="card-header bg-success text-white">
+                    <h2 class="text-center">Registration Complete!</h2>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-check-circle-fill" style="font-size: 4rem; color: green;"></i>
+                        <h3 class="mt-3">Thank you, {{ username }}!</h3>
+                        <p>Your multi-level authentication account has been successfully created.</p>
+                    </div>
+                    
+                    <div class="alert alert-success">
+                        <h5 class="alert-heading">Registration Summary</h5>
+                        <hr>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Level 1: Username/Password
+                                <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Level 2: Face Recognition
+                                <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Level 3: Gesture Recognition
+                                <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted">You can now log in using your credentials and biometric data.</p>
+                        <a href="{% url 'level_one' %}" class="btn btn-primary mt-2">Proceed to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %} 

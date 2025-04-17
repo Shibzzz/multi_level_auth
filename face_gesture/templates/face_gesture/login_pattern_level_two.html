@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login Pattern - Level Two Authentication{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="text-center">Login - Level Two</h2>
+                </div>
+                <div class="card-body">
+                    <p class="text-center text-muted mb-4">Image Pattern Authentication (Step 2 of 3)</p>
+                    
+                    <div class="progress mb-4">
+                        <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
+                    </div>
+                    
+                    {% if messages %}
+                    <div class="messages mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="pattern-authentication">
+                        <!-- Instructions -->
+                        <div class="instructions mb-4 alert alert-info">
+                            <p>Please follow these steps to verify your identity:</p>
+                            <ol>
+                                <li>Your registered image will be shown split into 9 numbered pieces</li>
+                                <li>Place each piece in its matching position</li>
+                                <li>Place all pieces to complete the authentication</li>
+                            </ol>
+                        </div>
+
+                        <!-- Pattern Progress -->
+                        <div id="pattern-progress" class="alert alert-secondary mb-3">
+                            Pieces placed: <span id="pieces-count">0</span>/9
+                        </div>
+
+                        <!-- Grid Container -->
+                        <div class="grid-container">
+                            <!-- Source Grid (Left) -->
+                            <div class="grid source-grid" id="sourceGrid">
+                                {% for i in grid_items %}
+                                <div class="grid-item" data-position="{{ i }}" draggable="true">
+                                    <img src="{{ pattern_image_url }}" alt="Pattern piece {{ i }}" id="piece{{ i }}">
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Target Grid (Right) -->
+                            <div class="grid target-grid" id="targetGrid">
+                                {% for i in grid_items %}
+                                <div class="grid-cell" data-index="{{ i }}"></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+                        <button id="verifyPattern" class="btn btn-success mt-3" style="display: none;">Verify Pattern</button>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <small class="text-muted">Level 2 of 3 in multi-level authentication</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .grid-container {
+        display: flex;
+        justify-content: space-around;
+        align-items: start;
+        margin: 40px 0;
+        gap: 50px;
+    }
+    
+    .source-grid, .target-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        gap: 2px;
+        background: #ccc;
+        padding: 2px;
+    }
+    
+    .grid-item {
+        width: 100px;
+        height: 100px;
+        position: relative;
+        overflow: hidden;
+        background: white;
+        border: 1px solid #ccc;
+        cursor: move;
+    }
+    
+    .grid-item img {
+        position: absolute;
+        pointer-events: none;
+    }
+    
+    .grid-item.dragging {
+        opacity: 0.5;
+    }
+    
+    .grid-cell {
+        width: 100px;
+        height: 100px;
+        border: 2px dashed #666;
+        background: white;
+        position: relative;
+    }
+    
+    .grid-cell.dragover {
+        background: #f0f0f0;
+        border-style: solid;
+    }
+    
+    .grid-cell.filled {
+        border: 2px solid #28a745;
+    }
+    
+    .grid-item::before {
+        content: attr(data-position);
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        z-index: 1;
+    }
+
+    .grid-cell::before {
+        content: attr(data-index);
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        background: rgba(0,0,0,0.3);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sourceGrid = document.getElementById('sourceGrid');
+        const targetGrid = document.getElementById('targetGrid');
+        const gridItems = document.querySelectorAll('.grid-item');
+        const gridCells = document.querySelectorAll('.grid-cell');
+        const errorMessageDiv = document.getElementById('error-message');
+        const verifyButton = document.getElementById('verifyPattern');
+        
+        // Initialize pattern pieces with correct image sections
+        initializePatternImages();
+        
+        // Setup drag and drop functionality
+        setupDragAndDrop();
+        
+        function initializePatternImages() {
+            // This function will be enhanced with the actual pattern image from the user's profile
+            const gridItems = document.querySelectorAll('.grid-item');
+            
+            gridItems.forEach(item => {
+                const position = parseInt(item.dataset.position);
+                const img = item.querySelector('img');
+                
+                // Set correct clipping for each piece (assuming a 3x3 grid)
+                const row = Math.floor((position - 1) / 3);
+                const col = (position - 1) % 3;
+                
+                img.style.width = '300px';
+                img.style.height = '300px';
+                img.style.left = `-${col * 100}px`;
+                img.style.top = `-${row * 100}px`;
+            });
+        }
+        
+        function setupDragAndDrop() {
+            // Make grid items draggable
+            gridItems.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+            
+            // Setup drop targets
+            gridCells.forEach(cell => {
+                cell.addEventListener('dragover', handleDragOver);
+                cell.addEventListener('dragleave', handleDragLeave);
+                cell.addEventListener('drop', handleDrop);
+            });
+        }
+        
+        function handleDragStart(e) {
+            this.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', this.dataset.position);
+        }
+        
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        }
+        
+        function handleDragLeave() {
+            this.classList.remove('dragover');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const position = e.dataTransfer.getData('text/plain');
+            const targetIndex = this.dataset.index;
+            
+            // For login, the pattern should match exactly what was registered
+            if (position !== targetIndex) {
+                showError("Pattern piece placed in incorrect position");
+                return;
+            }
+            
+            // If cell already has a piece, don't allow additional drops
+            if (this.hasChildNodes()) {
+                return;
+            }
+            
+            const draggedItem = document.querySelector(`.grid-item[data-position="${position}"]`);
+            const clone = draggedItem.cloneNode(true);
+            clone.classList.remove('dragging');
+            
+            // Add to the target cell and mark as filled
+            this.appendChild(clone);
+            this.dataset.filled = position;
+            this.dataset.placementTime = Date.now().toString();
+            this.classList.add('filled');
+            
+            // Update pieces count
+            updatePiecesCount();
+            
+            // Hide error message if present
+            hideError();
+        }
+        
+        function updatePiecesCount() {
+            const filledCells = document.querySelectorAll('.target-grid .grid-cell.filled');
+            const progressSpan = document.getElementById('pieces-count');
+            progressSpan.textContent = filledCells.length;
+            
+            // Show verify button when all pieces are placed
+            verifyButton.style.display = filledCells.length === 9 ? 'block' : 'none';
+        }
+        
+        function showError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.style.display = 'block';
+            
+            // Automatically hide after a few seconds
+            setTimeout(() => {
+                errorMessageDiv.style.display = 'none';
+            }, 3000);
+        }
+        
+        function hideError() {
+            errorMessageDiv.style.display = 'none';
+        }
+        
+        // Handle verify button click
+        verifyButton.addEventListener('click', function() {
+            const pattern = logPattern();
+            
+            // Send pattern to server for verification
+            verifyUserPattern(pattern);
+        });
+        
+        function logPattern() {
+            const filledCells = document.querySelectorAll('.target-grid .grid-cell[data-filled]');
+            const pattern = Array.from(filledCells).map(cell => ({
+                gridPosition: cell.dataset.filled,
+                targetPosition: cell.dataset.index,
+                placementTime: cell.dataset.placementTime
+            }));
+            return pattern;
+        }
+        
+        function verifyUserPattern(pattern) {
+            fetch('{% url "verify_pattern" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ pattern: pattern })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Redirect to face verification or show success message
+                    showSuccess(data.message, data.redirect_url);
+                } else {
+                    showError(data.message || 'Pattern verification failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('An error occurred during verification');
+            });
+        }
+        
+        function showSuccess(message, redirectUrl) {
+            // Create success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success mt-3';
+            successDiv.textContent = message;
+            
+            // Insert before the verify button
+            verifyButton.parentNode.insertBefore(successDiv, verifyButton);
+            
+            // Hide verify button
+            verifyButton.style.display = 'none';
+            
+            // Redirect after a short delay
+            setTimeout(() => {
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                } else {
+                    window.location.href = '{% url "level_three" %}';
+                }
+            }, 2000);
+        }
+    });
+</script>
+{% endblock %} 

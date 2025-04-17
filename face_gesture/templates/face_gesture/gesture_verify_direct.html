@@ -70,6 +70,13 @@
             if (data.status === 'success') {
                 statusEl.className = 'alert alert-success mt-3';
                 statusEl.textContent = data.message;
+                
+                // Check if there's a redirect URL in the response
+                if (data.redirect_url) {
+                    setTimeout(function() {
+                        window.location.href = data.redirect_url;
+                    }, 2000); // Wait for 2 seconds before redirecting
+                }
             } else {
                 statusEl.className = 'alert alert-danger mt-3';
                 statusEl.textContent = data.message || 'An error occurred during verification';
