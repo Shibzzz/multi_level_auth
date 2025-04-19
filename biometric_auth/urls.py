@@ -32,6 +32,7 @@ urlpatterns = [
     path('level-three/', face_gesture_views.level_three, name='level_three'),
     path('level-three/complete/', face_gesture_views.level_three_complete, name='level_three_complete'),
     path('dashboard/', face_gesture_views.dashboard, name='dashboard'),
+    path('auth-status/', face_gesture_views.auth_status, name='auth_status'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     
     # Pattern authentication

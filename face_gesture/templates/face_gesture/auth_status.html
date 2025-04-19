@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load form_tags %}
+{% load auth_tags %}
+
+{% block title %}Authentication Status{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3>Authentication Status</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Current Authentication Level: {% get_auth_level as current_level %}{{ current_level|auth_level_name }}</h4>
+                    
+                    <div class="progress mt-4 mb-4">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ current_level|mul:33.33 }}%" 
+                             aria-valuenow="{{ current_level }}" aria-valuemin="0" aria-valuemax="3">
+                            Level {{ current_level }}
+                        </div>
+                    </div>
+                    
+                    <div class="list-group">
+                        <div class="list-group-item {% has_completed_level 1 as level_one_done %}
+                                {% if level_one_done %}list-group-item-success{% else %}list-group-item-light{% endif %}">
+                            <h5 class="mb-1">Level 1: Password Authentication</h5>
+                            <p class="mb-1">{% if level_one_done %}Completed✓{% else %}Not completed{% endif %}</p>
+                        </div>
+                        
+                        <div class="list-group-item {% has_completed_level 2 as level_two_done %}
+                                {% if level_two_done %}list-group-item-success{% else %}list-group-item-light{% endif %}">
+                            <h5 class="mb-1">Level 2: Pattern Authentication</h5>
+                            <p class="mb-1">{% if level_two_done %}Completed✓{% else %}Not completed{% endif %}</p>
+                        </div>
+                        
+                        <div class="list-group-item {% has_completed_level 3 as level_three_done %}
+                                {% if level_three_done %}list-group-item-success{% else %}list-group-item-light{% endif %}">
+                            <h5 class="mb-1">Level 3: Biometric Authentication</h5>
+                            <p class="mb-1">{% if level_three_done %}Completed✓{% else %}Not completed{% endif %}</p>
+                        </div>
+                    </div>
+                    
+                    {% user_needs_auth as needs_auth %}
+                    {% if needs_auth %}
+                        <div class="alert alert-info mt-4">
+                            <p>You still need to complete some authentication levels.</p>
+                            <a href="{% get_next_auth_url %}" class="btn btn-primary">Continue Authentication</a>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success mt-4">
+                            <p>You have successfully completed all authentication levels!</p>
+                            <a href="{% url 'dashboard' %}" class="btn btn-success">Go to Dashboard</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load auth_tags %}
 
 {% block title %}Dashboard - Authentication Successful{% endblock %}
 
@@ -17,8 +18,17 @@
                         <p>You have successfully completed all three levels of authentication.</p>
                     </div>
                     
+                    {% get_auth_level as current_level %}
                     <div class="alert alert-success">
                         <h5 class="alert-heading">Authentication Summary</h5>
+                        <p class="mb-2">Current Authentication Level: <strong>{{ current_level|auth_level_name }}</strong></p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ current_level|mul:33.33 }}%" 
+                                 aria-valuenow="{{ current_level }}" aria-valuemin="0" aria-valuemax="3">
+                                Level {{ current_level }}
+                            </div>
+                        </div>
                         <hr>
                         <ul class="list-group">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -26,18 +36,24 @@
                                 <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Level 2: Face Recognition
+                                Level 2: Pattern Authentication
                                 <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Level 3: Gesture Recognition
+                                Level 3: face/gesture authentication
                                 <span class="badge bg-success rounded-pill"><i class="bi bi-check-lg"></i></span>
                             </li>
                         </ul>
                     </div>
                     
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">Session Information</h5>
+                        <p>Your current authentication will remain valid for this session. If you logout or close the browser, you'll need to complete all authentication levels again.</p>
+                    </div>
+                    
                     <div class="text-center mt-4">
                         <p class="text-muted">This is a secure area protected by multi-level authentication.</p>
+                        <a href="{% url 'auth_status' %}" class="btn btn-outline-primary mt-2 me-2">Authentication Status</a>
                         <a href="{% url 'logout' %}" class="btn btn-outline-secondary mt-2">Logout</a>
                     </div>
                 </div>

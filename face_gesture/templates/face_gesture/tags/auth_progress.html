@@ -1,0 +1,51 @@
+{% load auth_tags %}
+
+<div class="auth-progress-container mb-4">
+    <h5>Authentication Progress</h5>
+    <div class="progress mb-3">
+        <div class="progress-bar bg-success" role="progressbar" 
+             style="width: {{ level_percent }}%" 
+             aria-valuenow="{{ current_level }}" aria-valuemin="0" aria-valuemax="3">
+            {{ current_level }} / 3
+        </div>
+    </div>
+    
+    <ul class="list-group auth-levels">
+        <li class="list-group-item d-flex justify-content-between align-items-center {% if level_one_done %}list-group-item-success{% endif %}">
+            Level 1: Password
+            {% if level_one_done %}
+                <span class="badge bg-success rounded-pill">✓</span>
+            {% else %}
+                <a href="{% url 'level_one' %}" class="btn btn-sm btn-primary">Authenticate</a>
+            {% endif %}
+        </li>
+        
+        <li class="list-group-item d-flex justify-content-between align-items-center {% if level_two_done %}list-group-item-success{% endif %}">
+            Level 2: Pattern
+            {% if level_two_done %}
+                <span class="badge bg-success rounded-pill">✓</span>
+            {% else %}
+                <a href="{% url 'level_two' %}" class="btn btn-sm btn-primary">Authenticate</a>
+            {% endif %}
+        </li>
+        
+        <li class="list-group-item d-flex justify-content-between align-items-center {% if level_three_done %}list-group-item-success{% endif %}">
+            Level 3: Biometric
+            {% if level_three_done %}
+                <span class="badge bg-success rounded-pill">✓</span>
+            {% else %}
+                <a href="{% url 'level_three' %}" class="btn btn-sm btn-primary">Authenticate</a>
+            {% endif %}
+        </li>
+    </ul>
+    
+    {% if current_level == 3 %}
+        <div class="alert alert-success mt-3">
+            <p class="mb-0">All authentication levels completed! <a href="{% url 'dashboard' %}" class="alert-link">Go to Dashboard</a></p>
+        </div>
+    {% else %}
+        <div class="alert alert-info mt-3">
+            <p class="mb-0">Continue authentication to access secure features. <a href="{% get_next_auth_url %}" class="alert-link">Next Level</a></p>
+        </div>
+    {% endif %}
+</div> 

@@ -31,18 +31,22 @@ class UserProfile(models.Model):
         return f"UserProfile for {self.user.username}"
 
 class AuthenticationSession(models.Model):
-    """Session for tracking multi-level authentication status"""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auth_sessions')
-    session_key = models.CharField(max_length=255)
-    level_one_complete = models.BooleanField(default=False)
+    """Session tracking for multi-level authentication"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    session_key = models.CharField(max_length=40)
+    level_one_complete = models.BooleanField(default=False) 
     level_two_complete = models.BooleanField(default=False)
     level_three_complete = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        unique_together = ('user', 'session_key')
+    
     def __str__(self):
-        return f"AuthSession for {self.user.username} ({self.session_key})"
+        return f"Authentication session for {self.user.username}"
     
     @property
     def is_fully_authenticated(self):
+        """Check if all authentication levels are complete"""
         return self.level_one_complete and self.level_two_complete and self.level_three_complete

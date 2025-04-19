@@ -23,6 +23,8 @@ import mediapipe as mp
 from io import BytesIO
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+import traceback
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
@@ -70,8 +72,9 @@ def register(request):
     
     return render(request, 'face_gesture/register.html', {'form': form})
 
+@csrf_exempt
 def register_level_two(request):
-    """Level two registration using image pattern authentication."""
+    """Level two registration using pattern authentication."""
     # Check if level one registration data exists in session
     if 'registration_data' not in request.session:
         messages.error(request, 'Please complete level one registration first')
@@ -79,113 +82,187 @@ def register_level_two(request):
     
     if request.method == 'POST':
         try:
-            # Get the pattern data from the request
-            pattern = json.loads(request.POST.get('pattern'))
-            sorted_pattern = sorted(pattern, key=lambda x: int(x.get('placementTime', 0)))
+            # Debug log request
+            logger.info(f"POST request received with content type: {request.content_type}")
+            logger.info(f"POST data keys: {list(request.POST.keys())}")
+            logger.info(f"FILES keys: {list(request.FILES.keys())}")
             
             # Get the uploaded image
             if 'image' not in request.FILES:
-                return JsonResponse({'status': 'error', 'message': 'No image uploaded'})
+                logger.error("No image file received in request.FILES")
+                return JsonResponse({'status': 'error', 'message': 'No image uploaded. Please try again with a valid image.'})
                 
             image = request.FILES['image']
+            logger.info(f"Received image file: {image.name}, size: {image.size} bytes")
             
-            # Get registration data from session
-            registration_data = request.session.get('registration_data')
-            if not registration_data:
-                logger.error("No registration data found in session")
-                return JsonResponse({'status': 'error', 'message': 'Registration data not found in session'})
+            # Get the pattern data from the form
+            pattern_str = request.POST.get('pattern')
+            if not pattern_str:
+                logger.error("No pattern data received in request.POST")
+                return JsonResponse({'status': 'error', 'message': 'No pattern data received. Please try again.'})
             
-            # Create user
-            form = UserRegistrationForm(registration_data)
+            # Parse the pattern JSON
+            try:
+                pattern_data = json.loads(pattern_str)
+                if not pattern_data:
+                    logger.error("Empty pattern data after parsing JSON")
+                    return JsonResponse({'status': 'error', 'message': 'Invalid pattern format - empty data'})
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing error: {str(e)}")
+                return JsonResponse({'status': 'error', 'message': f'Invalid pattern format: {str(e)}'})
+            
+            # Extract sequence data from the pattern
+            try:
+                sequence = pattern_data.get('sequence', [])
+                if not sequence:
+                    logger.error("No sequence found in pattern data")
+                    return JsonResponse({'status': 'error', 'message': 'Invalid pattern format - no sequence data'})
+                    
+                logger.info(f"Sequence data: {sequence}")
+                
+                # Verify sequence has all 9 positions and follows the fixed pattern rule
+                # (each piece must be in its matching position)
+                if len(sequence) != 9:
+                    logger.error(f"Invalid sequence length: expected 9, got {len(sequence)}")
+                    return JsonResponse({'status': 'error', 'message': 'Please place all 9 pieces in the pattern grid'})
+                
+                # For each placement, check that blockId matches position
+                # (block 1 must be in position 1, etc.)
+                correct_placement = True
+                for item in sequence:
+                    blockId = item.get('blockId')
+                    position = item.get('position')
+                    
+                    if blockId != position:
+                        logger.error(f"Invalid placement: block {blockId} in position {position}")
+                        correct_placement = False
+                        break
+                        
+                if not correct_placement:
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': 'Each block must be placed in its matching position (block 1 in position 1, etc.)'
+                    })
+                    
+                # Get placements data for ordering
+                placements = pattern_data.get('placements', [])
+                
+                # Sort placements by time
+                sorted_placements = sorted(placements, key=lambda x: int(x.get('placementTime', 0)))
+                
+                # Create user from registration data
+                registration_data = request.session.get('registration_data', {})
+                form = UserRegistrationForm(registration_data)
+            except KeyError as e:
+                logger.error(f"Missing key in pattern data: {str(e)}")
+                return JsonResponse({'status': 'error', 'message': f'Invalid pattern format: {str(e)}'})
+            
             if form.is_valid():
-                user = form.save()
-                logger.info(f"User created successfully: {user.username}")
-                
-                # Log the user in
-                login(request, user)
-                logger.info("User logged in successfully")
-                
-                # Ensure session is created and has a key
-                if not request.session.session_key:
-                    request.session.create()
-                    logger.info(f"Created new session with key: {request.session.session_key}")
-                else:
-                    logger.info(f"Using existing session key: {request.session.session_key}")
+                try:
+                    user = form.save()
+                    logger.info(f"User created successfully: {user.username}")
+                    
+                    # Log the user in
+                    login(request, user)
+                    logger.info("User logged in successfully")
+                    
+                    # Ensure session is created and has a key
+                    if not request.session.session_key:
+                        request.session.create()
+                        logger.info(f"Created new session with key: {request.session.session_key}")
+                    else:
+                        logger.info(f"Using existing session key: {request.session.session_key}")
+                except Exception as e:
+                    logger.error(f"Error saving user: {str(e)}")
+                    return JsonResponse({'status': 'error', 'message': f'Error creating user: {str(e)}'})
                 
                 # Read and process image
-                # Open image using PIL
-                img = Image.open(image)
-                
-                # Resize image to a reasonable size (e.g., 800x800)
-                max_size = (800, 800)
-                img.thumbnail(max_size, Image.LANCZOS)
-                
-                # Convert to RGB if necessary
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                # Save to BytesIO
-                img_io = BytesIO()
-                img.save(img_io, format='JPEG', quality=85)
-                img_io.seek(0)
-                
-                # Create and save user profile with processed image data
-                user_profile = UserProfile.objects.create(
-                    user=user,
-                    pattern_image=img_io.getvalue(),  # Store processed binary data
-                    pattern=json.dumps(sorted_pattern)
-                )
-                logger.info("User profile created successfully")
-                
-                # Create authentication session with session key
                 try:
-                    auth_session = AuthenticationSession.objects.create(
-                        user=user,
-                        level_one_complete=True,
-                        level_two_complete=True,
-                        session_key=request.session.session_key
-                    )
-                    logger.info(f"Authentication session created successfully with key: {auth_session.session_key}")
+                    # Open image using PIL
+                    try:
+                        img = Image.open(image)
+                    except Exception as e:
+                        logger.error(f"Error opening image: {str(e)}")
+                        return JsonResponse({'status': 'error', 'message': f'Error opening image: {str(e)}'})
+                    
+                    # Resize image to a reasonable size (e.g., 800x800)
+                    max_size = (800, 800)
+                    img.thumbnail(max_size, Image.LANCZOS)
+                    
+                    # Convert to RGB if necessary
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    
+                    # Save to BytesIO
+                    img_io = BytesIO()
+                    img.save(img_io, format='JPEG', quality=85)
+                    img_io.seek(0)
+                    
+                    # Create pattern object with simplified format
+                    pattern_object = {
+                        'placements': sorted_placements,
+                        'sequence': sequence,
+                        'registered_at': datetime.now().isoformat()
+                    }
+                    
+                    # Create and save user profile with processed image data
+                    try:
+                        user_profile = UserProfile.objects.create(
+                            user=user,
+                            pattern_image=img_io.getvalue(),  # Store processed binary data
+                            pattern=json.dumps(pattern_object)
+                        )
+                        logger.info("User profile created successfully with pattern")
+                    except Exception as e:
+                        logger.error(f"Error creating user profile: {str(e)}")
+                        return JsonResponse({'status': 'error', 'message': f'Error saving pattern: {str(e)}'})
+                    
+                    # Create authentication session with session key
+                    try:
+                        auth_session = AuthenticationSession.objects.create(
+                            user=user,
+                            level_one_complete=True,
+                            level_two_complete=True,
+                            session_key=request.session.session_key
+                        )
+                        logger.info(f"Authentication session created successfully with key: {auth_session.session_key}")
+                    except Exception as e:
+                        logger.error(f"Error creating authentication session: {str(e)}")
+                        # Try to get existing session
+                        auth_session = AuthenticationSession.objects.filter(
+                            user=user,
+                            session_key=request.session.session_key
+                        ).first()
+                        if auth_session:
+                            logger.info("Found existing authentication session")
+                            auth_session.level_one_complete = True
+                            auth_session.level_two_complete = True
+                            auth_session.save()
+                        else:
+                            logger.error("Failed to create or find authentication session")
+                            return JsonResponse({'status': 'error', 'message': 'Failed to create authentication session'})
+                    
+                    # Get the redirect URL and log it
+                    redirect_url = reverse('register_level_three')
+                    logger.info(f"Redirecting to: {redirect_url}")
+                    
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': 'Pattern successfully registered!',
+                        'redirect_url': redirect_url
+                    })
+                    
                 except Exception as e:
-                    logger.error(f"Error creating authentication session: {str(e)}")
-                    # Try to get existing session
-                    auth_session = AuthenticationSession.objects.filter(
-                        user=user,
-                        session_key=request.session.session_key
-                    ).first()
-                    if auth_session:
-                        logger.info("Found existing authentication session")
-                        auth_session.level_one_complete = True
-                        auth_session.level_two_complete = True
-                        auth_session.save()
-                    else:
-                        raise Exception("Failed to create or find authentication session")
-                
-                # Keep registration data in session for level three
-                # if 'registration_data' in request.session:
-                #     del request.session['registration_data']
-                
-                # Get the redirect URL and log it
-                redirect_url = reverse('register_level_three')
-                logger.info(f"Redirecting to: {redirect_url}")
-                
-                return JsonResponse({
-                    'status': 'success',
-                    'message': 'Pattern successfully registered!',
-                    'redirect_url': redirect_url
-                })
+                    logger.error(f"Error processing image: {str(e)}")
+                    return JsonResponse({'status': 'error', 'message': f'Error processing pattern: {str(e)}'})
             else:
                 logger.error(f"Form validation errors: {form.errors}")
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f'Invalid registration data: {form.errors}'
-                })
-            
+                return JsonResponse({'status': 'error', 'message': 'Invalid registration data'})
         except Exception as e:
-            logger.error(f"Error in register_level_two: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': str(e)})
+            logger.exception(f"Unhandled error in register_level_two: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': f'An error occurred: {str(e)}'})
     
-    # GET request - render the template
+    # GET request - render the registration form
     return render(request, 'face_gesture/register_pattern_level_two.html')
 
 def register_level_three(request):
@@ -606,6 +683,34 @@ def dashboard(request):
         return redirect('level_one')
     
     return render(request, 'face_gesture/dashboard.html')
+
+@login_required
+def auth_status(request):
+    """View to display authentication status and progress."""
+    auth_session = AuthenticationSession.objects.filter(
+        user=request.user,
+        session_key=request.session.session_key
+    ).first()
+    
+    if not auth_session:
+        # Create a new session if one doesn't exist
+        auth_session = AuthenticationSession.objects.create(
+            user=request.user,
+            session_key=request.session.session_key,
+            level_one_complete=False,
+            level_two_complete=False,
+            level_three_complete=False
+        )
+    
+    # Get the biometric profile for this user
+    profile, created = BiometricProfile.objects.get_or_create(user=request.user)
+    
+    context = {
+        'auth_session': auth_session,
+        'biometric_profile': profile,
+    }
+    
+    return render(request, 'face_gesture/auth_status.html', context)
 
 def register_face(request, user_id):
     """View for registering a new face."""
@@ -1201,11 +1306,11 @@ def pattern_authentication(request):
             messages.warning(request, 'You need to complete registration first')
             return redirect('home')
             
-        # Get image URL to display in the template
-        # We need to create a view to serve this image securely
-        
         # Generate 9 grid items (1-9)
         grid_items = list(range(1, 10))
+        
+        # Add a message explaining what to do
+        messages.info(request, 'Please recreate your exact pattern from registration. Place each piece in the same position you placed it during registration.')
         
         return render(request, 'face_gesture/login_pattern_level_two.html', {
             'grid_items': grid_items,
@@ -1249,52 +1354,109 @@ def verify_pattern(request):
     try:
         # Get the submitted pattern from request body
         data = json.loads(request.body)
-        submitted_pattern = data.get('pattern', [])
+        submitted_pattern = data.get('pattern', {})
         
-        if not submitted_pattern:
+        if not submitted_pattern or 'sequence' not in submitted_pattern:
             return JsonResponse({
                 'status': 'error',
-                'message': 'No pattern submitted'
+                'message': 'No valid pattern submitted'
             }, status=400)
         
         # Get the user's stored pattern
         user_profile = UserProfile.objects.get(user=request.user)
-        stored_pattern = json.loads(user_profile.pattern)
+        stored_pattern_data = json.loads(user_profile.pattern)
         
-        # Simple verification: check if all pieces are in correct positions
-        # In a real app, you'd want to implement more sophisticated verification
-        is_valid = True
-        for piece in submitted_pattern:
-            # For the pattern login, each piece should be in its matching position
-            if piece['gridPosition'] != piece['targetPosition']:
-                is_valid = False
-                break
+        # Get the stored sequence - this is the sequence of blockIds in order of placement during registration
+        stored_sequence = stored_pattern_data.get('sequence', [])
         
-        if is_valid:
-            # Update authentication session
-            auth_session = AuthenticationSession.objects.filter(
-                user=request.user,
-                session_key=request.session.session_key
-            ).first()
-            
-            if auth_session:
-                auth_session.level_two_complete = True
-                auth_session.save()
-                logger.info(f"User {request.user.username} successfully authenticated level two with pattern")
-            
-            # Redirect to facial verification rather than level_three
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Pattern verification successful',
-                'redirect_url': reverse('verify_face', kwargs={'user_id': request.user.username})
-            })
-        else:
-            logger.warning(f"Failed pattern verification for user {request.user.username}")
+        # Get the submitted sequence - this is the sequence of blockIds in order of placement during login
+        submitted_sequence = submitted_pattern.get('sequence', [])
+        
+        if not stored_sequence or not submitted_sequence:
             return JsonResponse({
                 'status': 'error',
-                'message': 'Pattern verification failed. Please try again.'
+                'message': 'Invalid pattern data'
             }, status=400)
+        
+        # Log the sequences for debugging
+        logger.info(f"Verifying pattern for user {request.user.username}")
+        logger.info(f"Stored sequence: {stored_sequence}")
+        logger.info(f"Submitted sequence: {submitted_sequence}")
+        
+        # Convert stored sequence to a list of blockIds in placement order
+        stored_sequence_ids = []
+        for item in stored_sequence:
+            if isinstance(item, dict) and 'blockId' in item:
+                stored_sequence_ids.append(str(item['blockId']))
+        
+        # Convert submitted sequence to a list of blockIds (it might already be a list of strings)
+        submitted_sequence_ids = [str(item) for item in submitted_sequence]
             
+        logger.info(f"Stored sequence order: {stored_sequence_ids}")
+        logger.info(f"Submitted sequence order: {submitted_sequence_ids}")
+        
+        # Check if the sequence orders match exactly
+        if stored_sequence_ids != submitted_sequence_ids:
+            logger.warning(f"Pattern verification failed. Sequence order doesn't match.")
+            logger.warning(f"Expected sequence: {stored_sequence_ids}")
+            logger.warning(f"Submitted sequence: {submitted_sequence_ids}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Pattern verification failed. Please place pieces in the exact same sequence as during registration.'
+            }, status=400)
+        
+        # If we want to also check final positions (additional security check)
+        # Create a mapping of which piece is in which position
+        stored_pattern_pos = {}
+        for item in stored_sequence:
+            if isinstance(item, dict):
+                blockId = item.get('blockId')
+                position = item.get('position')
+                if blockId is not None and position is not None:
+                    stored_pattern_pos[str(blockId)] = str(position)
+        
+        # Check final positions - use placementObjects to get positions based on blockId
+        if 'placements' in submitted_pattern:
+            submitted_pattern_pos = {}
+            for placement in submitted_pattern['placements']:
+                blockId = placement.get('gridPosition')
+                position = placement.get('targetPosition')
+                if blockId is not None and position is not None:
+                    submitted_pattern_pos[str(blockId)] = str(position)
+                
+            # Log the position maps for debugging
+            logger.info(f"Stored positions: {stored_pattern_pos}")
+            logger.info(f"Submitted positions: {submitted_pattern_pos}")
+            
+            # Check if the final positions match
+            if stored_pattern_pos != submitted_pattern_pos:
+                logger.warning(f"Pattern verification failed. Positions don't match.")
+                logger.warning(f"Expected positions: {stored_pattern_pos}")
+                logger.warning(f"Submitted positions: {submitted_pattern_pos}")
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Pattern verification failed. Please place pieces in the exact same positions as during registration.'
+                }, status=400)
+        
+        # If we got here, the sequence and (optionally) positions match - authentication succeeds
+        # Update authentication session
+        auth_session = AuthenticationSession.objects.filter(
+            user=request.user,
+            session_key=request.session.session_key
+        ).first()
+        
+        if auth_session:
+            auth_session.level_two_complete = True
+            auth_session.save()
+            logger.info(f"User {request.user.username} successfully authenticated level two with pattern")
+        
+        # Redirect to facial verification
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Pattern verification successful',
+            'redirect_url': reverse('verify_face', kwargs={'user_id': request.user.username})
+        })
+        
     except UserProfile.DoesNotExist:
         return JsonResponse({
             'status': 'error',
@@ -1307,6 +1469,7 @@ def verify_pattern(request):
         }, status=400)
     except Exception as e:
         logger.error(f"Error during pattern verification: {str(e)}")
+        logger.error(traceback.format_exc())
         return JsonResponse({
             'status': 'error',
             'message': f'Error during verification: {str(e)}'

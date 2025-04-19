@@ -12,7 +12,7 @@
                     <h2 class="text-center">Login - Level Two</h2>
                 </div>
                 <div class="card-body">
-                    <p class="text-center text-muted mb-4">Image Pattern Authentication (Step 2 of 3)</p>
+                    <p class="text-center text-muted mb-4">Logical Pattern Authentication (Step 2 of 3)</p>
                     
                     <div class="progress mb-4">
                         <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
@@ -31,11 +31,13 @@
                     <div class="pattern-authentication">
                         <!-- Instructions -->
                         <div class="instructions mb-4 alert alert-info">
+                            <p><strong>Enhanced Pattern Authentication:</strong></p>
                             <p>Please follow these steps to verify your identity:</p>
                             <ol>
-                                <li>Your registered image will be shown split into 9 numbered pieces</li>
-                                <li>Place each piece in its matching position</li>
-                                <li>Place all pieces to complete the authentication</li>
+                                <li>Your registered image is shown split into 9 numbered pieces</li>
+                                <li>The pieces have been shuffled for security</li>
+                                <li>Place each piece in the exact same position as you did during registration</li>
+                                <li>The pattern must match exactly what you created during registration</li>
                             </ol>
                         </div>
 
@@ -43,10 +45,15 @@
                         <div id="pattern-progress" class="alert alert-secondary mb-3">
                             Pieces placed: <span id="pieces-count">0</span>/9
                         </div>
+                        
+                        <!-- Pattern Sequence Display -->
+                        <div id="pattern-sequence" class="alert alert-info mb-3">
+                            Your sequence: <span id="sequence-display"></span>
+                        </div>
 
                         <!-- Grid Container -->
                         <div class="grid-container">
-                            <!-- Source Grid (Left) -->
+                            <!-- Source Grid (Left) - Shuffled -->
                             <div class="grid source-grid" id="sourceGrid">
                                 {% for i in grid_items %}
                                 <div class="grid-item" data-position="{{ i }}" draggable="true">
@@ -152,6 +159,18 @@
         padding: 2px 6px;
         border-radius: 3px;
     }
+    
+    .sequence-number {
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        margin: 0 3px;
+    }
 </style>
 {% endblock %}
 
@@ -164,15 +183,23 @@
         const gridCells = document.querySelectorAll('.grid-cell');
         const errorMessageDiv = document.getElementById('error-message');
         const verifyButton = document.getElementById('verifyPattern');
+        const patternSequenceDiv = document.getElementById('pattern-sequence');
+        const sequenceDisplay = document.getElementById('sequence-display');
         
-        // Initialize pattern pieces with correct image sections
+        // Track the sequence of placements
+        let placementSequence = [];
+        
+        // Initialize pattern pieces with correct image sections and shuffle them
         initializePatternImages();
         
         // Setup drag and drop functionality
         setupDragAndDrop();
         
+        // Initialize the sequence display
+        updateSequenceDisplay();
+        
         function initializePatternImages() {
-            // This function will be enhanced with the actual pattern image from the user's profile
+            // This function initializes the pattern images and shuffles the source grid
             const gridItems = document.querySelectorAll('.grid-item');
             
             gridItems.forEach(item => {
@@ -188,6 +215,40 @@
                 img.style.left = `-${col * 100}px`;
                 img.style.top = `-${row * 100}px`;
             });
+            
+            // Shuffle the source grid for login security
+            shuffleSourceGrid();
+        }
+        
+        function shuffleSourceGrid() {
+            // Shuffle the grid items in the source grid
+            const gridItemsArray = Array.from(sourceGrid.children);
+            const shuffled = shuffleArray(gridItemsArray);
+            
+            // Clear the source grid
+            sourceGrid.innerHTML = '';
+            
+            // Add the shuffled items back to the source grid
+            shuffled.forEach(item => {
+                sourceGrid.appendChild(item);
+            });
+        }
+        
+        function shuffleArray(array) {
+            // Fisher-Yates shuffle algorithm
+            let currentIndex = array.length, randomIndex;
+            
+            // While there remain elements to shuffle
+            while (currentIndex != 0) {
+                // Pick a remaining element
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                
+                // And swap it with the current element
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            
+            return array;
         }
         
         function setupDragAndDrop() {
@@ -227,14 +288,10 @@
             e.preventDefault();
             this.classList.remove('dragover');
             
-            const position = e.dataTransfer.getData('text/plain');
-            const targetIndex = this.dataset.index;
+            const position = e.dataTransfer.getData('text/plain'); // The piece number
+            const targetIndex = this.dataset.index;                // The cell position
             
-            // For login, the pattern should match exactly what was registered
-            if (position !== targetIndex) {
-                showError("Pattern piece placed in incorrect position");
-                return;
-            }
+            // Allow any piece to be placed in any position (to match registered pattern)
             
             // If cell already has a piece, don't allow additional drops
             if (this.hasChildNodes()) {
@@ -251,6 +308,10 @@
             this.dataset.placementTime = Date.now().toString();
             this.classList.add('filled');
             
+            // Add to sequence and update display
+            placementSequence.push(position);
+            updateSequenceDisplay();
+            
             // Update pieces count
             updatePiecesCount();
             
@@ -264,7 +325,17 @@
             progressSpan.textContent = filledCells.length;
             
             // Show verify button when all pieces are placed
+            const verifyButton = document.getElementById('verifyPattern');
             verifyButton.style.display = filledCells.length === 9 ? 'block' : 'none';
+        }
+        
+        function updateSequenceDisplay() {
+            if (placementSequence.length > 0) {
+                sequenceDisplay.innerHTML = placementSequence.map(pos => 
+                    `<span class="sequence-number">${pos}</span>`).join(' → ');
+            } else {
+                sequenceDisplay.innerHTML = "<em>Place pieces in the correct positions</em>";
+            }
         }
         
         function showError(message) {
@@ -282,7 +353,7 @@
         }
         
         // Handle verify button click
-        verifyButton.addEventListener('click', function() {
+        document.getElementById('verifyPattern').addEventListener('click', function() {
             const pattern = logPattern();
             
             // Send pattern to server for verification
@@ -290,16 +361,37 @@
         });
         
         function logPattern() {
-            const filledCells = document.querySelectorAll('.target-grid .grid-cell[data-filled]');
-            const pattern = Array.from(filledCells).map(cell => ({
-                gridPosition: cell.dataset.filled,
-                targetPosition: cell.dataset.index,
-                placementTime: cell.dataset.placementTime
-            }));
+            const filledCells = document.querySelectorAll('.target-grid .grid-cell.filled');
+            
+            // Create placement objects based on stored sequence
+            const placementObjects = placementSequence.map(pieceNumber => {
+                const cell = document.querySelector(`.grid-cell[data-filled="${pieceNumber}"]`);
+                return {
+                    blockId: parseInt(pieceNumber),
+                    position: parseInt(cell.dataset.index)
+                };
+            });
+            
+            // Do NOT sort by blockId - we need the actual sequence of placements
+            // This is important for security - the order matters!
+            
+            // Create pattern object with sequence for verification
+            const pattern = {
+                placements: Array.from(filledCells).map(cell => ({
+                    gridPosition: cell.dataset.filled,
+                    targetPosition: cell.dataset.index,
+                    placementTime: cell.dataset.placementTime
+                })),
+                sequence: placementSequence  // Use the actual sequence of placements
+            };
+            
+            console.log('Submitting pattern:', pattern);
             return pattern;
         }
         
         function verifyUserPattern(pattern) {
+            console.log('Sending pattern for verification:', JSON.stringify(pattern));
+            
             fetch('{% url "verify_pattern" %}', {
                 method: 'POST',
                 headers: {
@@ -308,8 +400,17 @@
                 },
                 body: JSON.stringify({ pattern: pattern })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        console.error('Verification failed:', data);
+                        throw new Error(data.message || 'Verification failed');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Verification response:', data);
                 if (data.status === 'success') {
                     // Redirect to face verification or show success message
                     showSuccess(data.message, data.redirect_url);
@@ -319,7 +420,7 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                showError('An error occurred during verification');
+                showError(error.message || 'An error occurred during verification');
             });
         }
         
@@ -328,6 +429,9 @@
             const successDiv = document.createElement('div');
             successDiv.className = 'alert alert-success mt-3';
             successDiv.textContent = message;
+            
+            // Get the verify button
+            const verifyButton = document.getElementById('verifyPattern');
             
             // Insert before the verify button
             verifyButton.parentNode.insertBefore(successDiv, verifyButton);
