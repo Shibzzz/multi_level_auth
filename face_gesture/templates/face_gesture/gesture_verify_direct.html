@@ -67,15 +67,24 @@
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Verification response:', data); // Log the response for debugging
+            
             if (data.status === 'success') {
                 statusEl.className = 'alert alert-success mt-3';
                 statusEl.textContent = data.message;
                 
                 // Check if there's a redirect URL in the response
                 if (data.redirect_url) {
+                    console.log('Redirecting to:', data.redirect_url);
+                    statusEl.textContent += ' Redirecting to dashboard...';
+                    
+                    // Force a delay to ensure the message is seen before redirect
                     setTimeout(function() {
+                        console.log('Executing redirect now...');
                         window.location.href = data.redirect_url;
                     }, 2000); // Wait for 2 seconds before redirecting
+                } else {
+                    console.log('No redirect URL in response');
                 }
             } else {
                 statusEl.className = 'alert alert-danger mt-3';
@@ -83,6 +92,7 @@
             }
         })
         .catch(error => {
+            console.error('Fetch error:', error);
             statusEl.className = 'alert alert-danger mt-3';
             statusEl.textContent = 'Error: ' + error.message;
         })

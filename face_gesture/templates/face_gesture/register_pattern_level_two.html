@@ -4,69 +4,99 @@
 {% block title %}Register Pattern - Level Two Authentication{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="text-center">Register - Level Two</h2>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center mb-0">
+                    <i class="fas fa-puzzle-piece me-2"></i>Pattern Authentication Setup
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-center text-muted mb-4">Create your unique visual pattern for level 2 authentication</p>
+                
+                <div class="progress mb-4">
+                    <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
                 </div>
-                <div class="card-body">
-                    <p class="text-center text-muted mb-4">Sequence-Based Pattern Authentication (Step 2 of 3)</p>
-                    
-                    <div class="progress mb-4">
-                        <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
-                    </div>
-                    
-                    <div class="pattern-authentication">
-                        <!-- Instructions -->
-                        <div class="instructions mb-4 alert alert-info">
-                            <p><strong>Enhanced Pattern Authentication:</strong></p>
+                
+                <div class="pattern-authentication">
+                    <!-- Instructions -->
+                    <div class="instructions mb-4 alert alert-info d-flex align-items-start">
+                        <i class="fas fa-info-circle fa-lg me-3 mt-1"></i>
+                        <div>
+                            <h5 class="alert-heading">Enhanced Pattern Authentication</h5>
                             <p>Create a unique sequence-based pattern that only you know:</p>
-                            <ol>
-                                <li>Upload an image and click "Create Grid"</li>
-                                <li>The image will be split into 9 numbered pieces (1-9)</li>
-                                <li>Create your custom pattern by dragging pieces to positions in a specific sequence</li>
-                                <li>For example: Block 3 to Position 3, then Block 1 to Position 1, then Block 6 to Position 6</li>
-                                <li><strong>Remember your sequence!</strong> During login, pieces will be randomly shuffled and you'll need to recreate the same pattern logic</li>
+                            <ol class="ps-3">
+                                <li class="mb-2">Upload an image and click <strong>"Create Grid"</strong></li>
+                                <li class="mb-2">The image will be split into 9 numbered pieces (1-9)</li>
+                                <li class="mb-2">Create your custom pattern by dragging pieces to positions in a specific sequence</li>
+                                <li class="mb-2">The sequence you create is part of your security key, so remember the order!</li>
+                                <li class="mb-2"><strong>Important:</strong> During login, you must recreate the same pattern in the same sequence</li>
                             </ol>
                         </div>
+                    </div>
 
-                        <form id="patternForm" enctype="multipart/form-data">
-                            {% csrf_token %}
-                            <!-- Image Upload Section -->
-                            <div class="upload-section mb-4">
-                                <input type="file" id="imageUpload" name="image" accept="image/*" class="form-control mb-2">
-                                <button id="splitImage" class="btn btn-primary" disabled>Create Grid</button>
+                    <form id="patternForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <!-- Image Upload Section -->
+                        <div class="upload-section p-4 mb-4 bg-white rounded-3 border">
+                            <h5 class="mb-3"><i class="fas fa-image me-2"></i>Choose an Image</h5>
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-8">
+                                    <input type="file" id="imageUpload" name="image" accept="image/*" class="form-control">
+                                    <div class="form-text">Select an image that's meaningful to you (max 5MB)</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <button id="splitImage" class="btn btn-primary w-100" disabled>
+                                        <i class="fas fa-th me-2"></i>Create Grid
+                                    </button>
+                                </div>
                             </div>
+                        </div>
 
-                            <!-- Pattern Progress -->
-                            <div id="pattern-progress" class="alert alert-secondary mb-3" style="display: none;">
-                                Pieces placed: <span id="pieces-count">0</span>/9
+                        <!-- Pattern Progress -->
+                        <div id="pattern-progress" class="alert alert-secondary mb-3 d-flex align-items-center" style="display: none;">
+                            <i class="fas fa-tasks me-2"></i>
+                            <span>Progress: <span id="pieces-count" class="fw-bold">0</span>/9 pieces placed</span>
+                        </div>
+
+                        <!-- Pattern Sequence Display -->
+                        <div id="pattern-sequence" class="alert alert-info mb-3" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-list-ol me-2"></i>
+                                <h5 class="mb-0">Your Sequence</h5>
                             </div>
+                            <div id="sequence-display" class="p-2"></div>
+                        </div>
 
-                            <!-- Pattern Sequence Display -->
-                            <div id="pattern-sequence" class="alert alert-info mb-3" style="display: none;">
-                                Your sequence: <span id="sequence-display"></span>
-                            </div>
-
-                            <!-- Grid Container -->
-                            <div class="grid-container" style="display: none;">
+                        <!-- Grid Container -->
+                        <div class="grid-container mt-4" style="display: none;">
+                            <div class="row justify-content-center align-items-start gx-5">
                                 <!-- Source Grid (Left) -->
-                                <div class="grid source-grid" id="sourceGrid"></div>
+                                <div class="col-md-5">
+                                    <h5 class="text-center mb-3">Available Pieces</h5>
+                                    <div class="grid source-grid mx-auto" id="sourceGrid"></div>
+                                </div>
 
                                 <!-- Target Grid (Right) -->
-                                <div class="grid target-grid" id="targetGrid"></div>
+                                <div class="col-md-5">
+                                    <h5 class="text-center mb-3">Your Pattern</h5>
+                                    <div class="grid target-grid mx-auto" id="targetGrid"></div>
+                                </div>
                             </div>
+                        </div>
 
-                            <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
-                            <button type="submit" id="submitPattern" class="btn btn-success mt-3" style="display: none;">Save Pattern</button>
-                        </form>
-                    </div>
+                        <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+                        <button type="submit" id="submitPattern" class="btn btn-success w-100 mt-3" style="display: none;">
+                            <i class="fas fa-save me-2"></i>Save Pattern and Continue
+                        </button>
+                    </form>
                 </div>
-                <div class="card-footer text-center">
-                    <a href="{% url 'register_cancel' %}" class="btn btn-outline-secondary btn-sm">Cancel Registration</a>
-                </div>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{% url 'register_cancel' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-2"></i>Cancel Registration
+                </a>
             </div>
         </div>
     </div>
@@ -76,19 +106,17 @@
 {% block extra_css %}
 <style>
     .grid-container {
-        display: none;
-        justify-content: space-around;
-        align-items: start;
         margin: 40px 0;
-        gap: 50px;
     }
     
     .source-grid, .target-grid {
         display: grid;
         grid-template-columns: repeat(3, 100px);
-        gap: 2px;
-        background: #ccc;
-        padding: 2px;
+        gap: 4px;
+        background: #e9ecef;
+        padding: 4px;
+        border-radius: 8px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
     }
     
     .grid-item {
@@ -97,8 +125,15 @@
         position: relative;
         overflow: hidden;
         background: white;
-        border: 1px solid #ccc;
+        border: 1px solid #dee2e6;
         cursor: move;
+        border-radius: 6px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .grid-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
     .grid-item img {
@@ -107,24 +142,30 @@
     }
     
     .grid-item.dragging {
-        opacity: 0.5;
+        opacity: 0.6;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     }
     
     .grid-cell {
         width: 100px;
         height: 100px;
-        border: 2px dashed #666;
+        border: 2px dashed #adb5bd;
         background: white;
         position: relative;
+        border-radius: 6px;
+        transition: all 0.2s;
     }
     
     .grid-cell.dragover {
-        background: #f0f0f0;
+        background: #e9ecef;
         border-style: solid;
+        border-color: var(--primary);
+        transform: scale(1.02);
     }
     
     .grid-cell.filled {
-        border: 2px solid #28a745;
+        border: 2px solid var(--success);
+        box-shadow: 0 2px 5px rgba(76, 201, 240, 0.3);
     }
     
     .grid-item::before {
@@ -132,10 +173,11 @@
         position: absolute;
         top: 5px;
         left: 5px;
-        background: rgba(0,0,0,0.7);
+        background: var(--primary);
         color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
         z-index: 1;
     }
 
@@ -144,22 +186,57 @@
         position: absolute;
         top: 5px;
         left: 5px;
-        background: rgba(0,0,0,0.3);
+        background: rgba(0, 0, 0, 0.2);
         color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        z-index: 1;
     }
     
     .sequence-number {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        line-height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        line-height: 36px;
         text-align: center;
-        background-color: #007bff;
+        background-color: var(--primary);
         color: white;
+        font-weight: bold;
         border-radius: 50%;
-        margin: 0 3px;
+        margin: 0 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    .position-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        line-height: 36px;
+        text-align: center;
+        background-color: var(--info);
+        color: white;
+        font-weight: bold;
+        border-radius: 50%;
+        margin: 0 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Arrow animation */
+    @keyframes arrowPulse {
+        0% { opacity: 0.7; transform: translateX(0); }
+        50% { opacity: 1; transform: translateX(4px); }
+        100% { opacity: 0.7; transform: translateX(0); }
+    }
+    
+    .sequence-arrow {
+        display: inline-block;
+        margin: 0 5px;
+        color: var(--gray-600);
+        animation: arrowPulse 1.5s infinite;
     }
 </style>
 {% endblock %}
@@ -196,8 +273,18 @@
         function updateSequenceDisplay() {
             if (placementSequence.length > 0) {
                 patternSequenceDiv.style.display = 'block';
-                sequenceDisplay.innerHTML = placementSequence.map(mapping => 
-                    `<span class="sequence-number">${mapping.blockId}</span> → <span class="position-number">${mapping.position}</span>`).join(', ');
+                
+                // Create a more visually appealing sequence display
+                const sequenceHTML = placementSequence.map((mapping, index) => {
+                    // Don't add arrow after the last item
+                    const arrow = index < placementSequence.length - 1 
+                        ? '<i class="fas fa-arrow-right sequence-arrow"></i>' 
+                        : '';
+                    
+                    return `<span class="sequence-number">${mapping.blockId}</span>${arrow}`;
+                }).join('');
+                
+                sequenceDisplay.innerHTML = sequenceHTML;
             }
         }
 
@@ -248,6 +335,15 @@
                 clone.classList.remove('dragging');
                 this.appendChild(clone);
                 
+                // Add a success feedback animation
+                this.animate([
+                    { transform: 'scale(1.05)', boxShadow: '0 0 0 3px rgba(76, 201, 240, 0.5)' },
+                    { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(76, 201, 240, 0)' }
+                ], {
+                    duration: 400,
+                    easing: 'ease-out'
+                });
+                
                 // Mark the cell as filled and store placement data
                 this.dataset.filled = blockId;
                 this.dataset.placementTime = Date.now().toString();
@@ -262,6 +358,13 @@
                 
                 // Update pieces count
                 updatePiecesCount();
+                
+                // If all pieces are placed, scroll to the submit button
+                if (placementSequence.length === 9) {
+                    setTimeout(() => {
+                        submitButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
             }
         }
 
@@ -277,6 +380,11 @@
         function handleDragStart(e) {
             e.dataTransfer.setData('text/plain', this.dataset.position);
             this.classList.add('dragging');
+            
+            // Add a subtle sound effect for drag start (optional)
+            // const audio = new Audio('/static/sounds/drag.mp3');
+            // audio.volume = 0.2;
+            // audio.play().catch(e => console.log('Audio play prevented by browser policy'));
         }
         
         function handleDragEnd() {
@@ -285,12 +393,27 @@
 
         function showError(message) {
             const errorElement = document.getElementById('error-message');
-            errorElement.textContent = message;
+            errorElement.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${message}`;
             errorElement.style.display = 'block';
+            
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Add a subtle shake animation
+            errorElement.animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' },
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' },
+                { transform: 'translateX(0)' }
+            ], {
+                duration: 500,
+                easing: 'ease-in-out'
+            });
             
             setTimeout(() => {
                 errorElement.style.display = 'none';
-            }, 3000);
+            }, 4000);
         }
 
         // Initialize the grid with the uploaded image
@@ -314,6 +437,10 @@
                 showError('Please select a valid image file.');
                 return;
             }
+            
+            // Show loading state
+            splitButton.disabled = true;
+            splitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
             
             reader.onload = function(e) {
                 const img = new Image();
@@ -363,12 +490,19 @@
                     }
                     
                     // Show the grids and progress indicator
-                    gridContainer.style.display = 'flex';
-                    document.getElementById('pattern-progress').style.display = 'block';
+                    gridContainer.style.display = 'block';
+                    document.getElementById('pattern-progress').style.display = 'flex';
                     patternSequenceDiv.style.display = 'none';
                     
                     // Reset sequence
                     placementSequence = [];
+                    
+                    // Restore button state
+                    splitButton.disabled = false;
+                    splitButton.innerHTML = '<i class="fas fa-th me-2"></i>Create Grid';
+                    
+                    // Scroll to the grid container
+                    gridContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 };
                 
                 img.src = e.target.result;
@@ -394,7 +528,7 @@
             
             // Show loading state
             submitButton.disabled = true;
-            submitButton.innerHTML = 'Saving pattern...';
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving pattern...';
             
             try {
                 // Get the pattern data
@@ -439,7 +573,7 @@
                     showError(data.message || 'Unknown error occurred');
                     // Reset button state
                     submitButton.disabled = false;
-                    submitButton.innerHTML = 'Save Pattern';
+                    submitButton.innerHTML = '<i class="fas fa-save me-2"></i>Save Pattern and Continue';
                 }
             } catch (error) {
                 console.error('Error during form submission:', error);
@@ -447,24 +581,49 @@
                 
                 // Reset button state
                 submitButton.disabled = false;
-                submitButton.innerHTML = 'Save Pattern';
+                submitButton.innerHTML = '<i class="fas fa-save me-2"></i>Save Pattern and Continue';
             }
         });
         
         function showSuccess(message) {
+            // Create success message with animation
             const successDiv = document.createElement('div');
-            successDiv.className = 'alert alert-success mt-3';
-            successDiv.textContent = message;
+            successDiv.className = 'alert alert-success mt-3 d-flex align-items-center';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle fa-2x me-3"></i>
+                <div>
+                    <h5 class="alert-heading">Success!</h5>
+                    <p class="mb-0">${message}</p>
+                </div>
+            `;
             
             // Insert before the error message
             const errorElement = document.getElementById('error-message');
             errorElement.parentNode.insertBefore(successDiv, errorElement);
             
+            // Add entrance animation
+            successDiv.animate([
+                { opacity: 0, transform: 'translateY(-20px)' },
+                { opacity: 1, transform: 'translateY(0)' }
+            ], {
+                duration: 300,
+                easing: 'ease-out'
+            });
+            
+            // Scroll to the success message
+            successDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
             // Hide after a delay
             setTimeout(() => {
-                successDiv.remove();
+                successDiv.animate([
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], {
+                    duration: 300,
+                    easing: 'ease-out'
+                }).onfinish = () => successDiv.remove();
             }, 3000);
         }
     });
 </script>
-{% endblock %} 
+{% endblock %}

@@ -1261,7 +1261,9 @@ def verify_gesture_direct(request, user_id):
                         logger.info(f"User {request.user.username} successfully authenticated level three")
                         
                         # This is the final step of authentication, redirect to dashboard
-                        response_data['redirect_url'] = reverse('dashboard')
+                        dashboard_url = reverse('dashboard')
+                        response_data['redirect_url'] = dashboard_url
+                        logger.info(f"Setting redirect_url to: {dashboard_url}")
                         
                         # Add a success message that will be displayed on the dashboard
                         messages.success(request, 'Multi-level authentication completed successfully!')
@@ -1276,7 +1278,8 @@ def verify_gesture_direct(request, user_id):
                     'status': 'error',
                     'message': message
                 }
-                
+            
+            logger.info(f"Response data: {response_data}")
             return JsonResponse(response_data)
                 
         except Exception as e:

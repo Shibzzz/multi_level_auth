@@ -4,79 +4,108 @@
 {% block title %}Login Pattern - Level Two Authentication{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="text-center">Login - Level Two</h2>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="text-center mb-0">
+                    <i class="fas fa-puzzle-piece me-2"></i>Pattern Verification
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-center text-muted mb-4">Sequence-Based Pattern Authentication (Step 2 of 3)</p>
+                
+                <div class="progress mb-4">
+                    <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
                 </div>
-                <div class="card-body">
-                    <p class="text-center text-muted mb-4">Logical Pattern Authentication (Step 2 of 3)</p>
-                    
-                    <div class="progress mb-4">
-                        <div class="progress-bar" role="progressbar" style="width: 66%;" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100">Step 2 of 3</div>
+                
+                {% if messages %}
+                <div class="messages mb-4">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} d-flex align-items-center">
+                        {% if message.tags == 'success' %}
+                            <i class="fas fa-check-circle me-2"></i>
+                        {% elif message.tags == 'error' or message.tags == 'danger' %}
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                        {% elif message.tags == 'warning' %}
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% elif message.tags == 'info' %}
+                            <i class="fas fa-info-circle me-2"></i>
+                        {% endif %}
+                        <div>{{ message }}</div>
                     </div>
-                    
-                    {% if messages %}
-                    <div class="messages mb-4">
-                        {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">
-                            {{ message }}
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    
-                    <div class="pattern-authentication">
-                        <!-- Instructions -->
-                        <div class="instructions mb-4 alert alert-info">
-                            <p><strong>Enhanced Pattern Authentication:</strong></p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="pattern-authentication">
+                    <!-- Instructions -->
+                    <div class="instructions mb-4 alert alert-info d-flex align-items-start">
+                        <i class="fas fa-shield-alt fa-lg me-3 mt-1"></i>
+                        <div>
+                            <h5 class="alert-heading">Enhanced Security Verification</h5>
                             <p>Please follow these steps to verify your identity:</p>
-                            <ol>
-                                <li>Your registered image is shown split into 9 numbered pieces</li>
-                                <li>The pieces have been shuffled for security</li>
-                                <li>Place each piece in the exact same position as you did during registration</li>
-                                <li>The pattern must match exactly what you created during registration</li>
+                            <ol class="ps-3">
+                                <li class="mb-2">Your registered image has been split into <strong>9 numbered pieces</strong></li>
+                                <li class="mb-2">The pieces have been shuffled for additional security</li>
+                                <li class="mb-2">Recreate your pattern by placing each piece in the <strong>exact same sequence</strong> as during registration</li>
+                                <li class="mb-2">Both the sequence and final positions must match your original pattern</li>
                             </ol>
                         </div>
+                    </div>
 
-                        <!-- Pattern Progress -->
-                        <div id="pattern-progress" class="alert alert-secondary mb-3">
-                            Pieces placed: <span id="pieces-count">0</span>/9
+                    <!-- Pattern Progress -->
+                    <div id="pattern-progress" class="alert alert-secondary mb-3 d-flex align-items-center">
+                        <i class="fas fa-tasks me-2"></i>
+                        <span>Progress: <span id="pieces-count" class="fw-bold">0</span>/9 pieces placed</span>
+                    </div>
+                    
+                    <!-- Pattern Sequence Display -->
+                    <div id="pattern-sequence" class="alert alert-info mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-list-ol me-2"></i>
+                            <h5 class="mb-0">Your Sequence</h5>
                         </div>
-                        
-                        <!-- Pattern Sequence Display -->
-                        <div id="pattern-sequence" class="alert alert-info mb-3">
-                            Your sequence: <span id="sequence-display"></span>
-                        </div>
+                        <div id="sequence-display" class="p-2"></div>
+                    </div>
 
-                        <!-- Grid Container -->
-                        <div class="grid-container">
+                    <!-- Grid Container -->
+                    <div class="grid-container mt-4">
+                        <div class="row justify-content-center align-items-start gx-5">
                             <!-- Source Grid (Left) - Shuffled -->
-                            <div class="grid source-grid" id="sourceGrid">
-                                {% for i in grid_items %}
-                                <div class="grid-item" data-position="{{ i }}" draggable="true">
-                                    <img src="{{ pattern_image_url }}" alt="Pattern piece {{ i }}" id="piece{{ i }}">
+                            <div class="col-md-5">
+                                <h5 class="text-center mb-3">Available Pieces</h5>
+                                <div class="grid source-grid mx-auto" id="sourceGrid">
+                                    {% for i in grid_items %}
+                                    <div class="grid-item" data-position="{{ i }}" draggable="true">
+                                        <img src="{{ pattern_image_url }}" alt="Pattern piece {{ i }}" id="piece{{ i }}">
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                                {% endfor %}
                             </div>
 
                             <!-- Target Grid (Right) -->
-                            <div class="grid target-grid" id="targetGrid">
-                                {% for i in grid_items %}
-                                <div class="grid-cell" data-index="{{ i }}"></div>
-                                {% endfor %}
+                            <div class="col-md-5">
+                                <h5 class="text-center mb-3">Your Pattern</h5>
+                                <div class="grid target-grid mx-auto" id="targetGrid">
+                                    {% for i in grid_items %}
+                                    <div class="grid-cell" data-index="{{ i }}"></div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </div>
-
-                        <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
-                        <button id="verifyPattern" class="btn btn-success mt-3" style="display: none;">Verify Pattern</button>
                     </div>
+
+                    <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+                    <button id="verifyPattern" class="btn btn-success w-100 mt-3" style="display: none;">
+                        <i class="fas fa-check-circle me-2"></i>Verify Pattern & Continue
+                    </button>
                 </div>
-                <div class="card-footer text-center">
-                    <small class="text-muted">Level 2 of 3 in multi-level authentication</small>
-                </div>
+            </div>
+            <div class="card-footer text-center">
+                <small class="text-muted">
+                    <i class="fas fa-lock me-1"></i> Level 2 of 3 in multi-level authentication
+                </small>
             </div>
         </div>
     </div>
@@ -86,19 +115,17 @@
 {% block extra_css %}
 <style>
     .grid-container {
-        display: flex;
-        justify-content: space-around;
-        align-items: start;
         margin: 40px 0;
-        gap: 50px;
     }
     
     .source-grid, .target-grid {
         display: grid;
         grid-template-columns: repeat(3, 100px);
-        gap: 2px;
-        background: #ccc;
-        padding: 2px;
+        gap: 4px;
+        background: #e9ecef;
+        padding: 4px;
+        border-radius: 8px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
     }
     
     .grid-item {
@@ -107,8 +134,15 @@
         position: relative;
         overflow: hidden;
         background: white;
-        border: 1px solid #ccc;
+        border: 1px solid #dee2e6;
         cursor: move;
+        border-radius: 6px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .grid-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
     .grid-item img {
@@ -117,24 +151,30 @@
     }
     
     .grid-item.dragging {
-        opacity: 0.5;
+        opacity: 0.6;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     }
     
     .grid-cell {
         width: 100px;
         height: 100px;
-        border: 2px dashed #666;
+        border: 2px dashed #adb5bd;
         background: white;
         position: relative;
+        border-radius: 6px;
+        transition: all 0.2s;
     }
     
     .grid-cell.dragover {
-        background: #f0f0f0;
+        background: #e9ecef;
         border-style: solid;
+        border-color: var(--primary);
+        transform: scale(1.02);
     }
     
     .grid-cell.filled {
-        border: 2px solid #28a745;
+        border: 2px solid var(--success);
+        box-shadow: 0 2px 5px rgba(76, 201, 240, 0.3);
     }
     
     .grid-item::before {
@@ -142,10 +182,11 @@
         position: absolute;
         top: 5px;
         left: 5px;
-        background: rgba(0,0,0,0.7);
+        background: var(--primary);
         color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
         z-index: 1;
     }
 
@@ -154,22 +195,41 @@
         position: absolute;
         top: 5px;
         left: 5px;
-        background: rgba(0,0,0,0.3);
+        background: rgba(0, 0, 0, 0.2);
         color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        z-index: 1;
     }
     
     .sequence-number {
-        display: inline-block;
-        width: 24px;
-        height: 24px;
-        line-height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        line-height: 36px;
         text-align: center;
-        background-color: #007bff;
+        background-color: var(--primary);
         color: white;
+        font-weight: bold;
         border-radius: 50%;
-        margin: 0 3px;
+        margin: 0 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Arrow animation */
+    @keyframes arrowPulse {
+        0% { opacity: 0.7; transform: translateX(0); }
+        50% { opacity: 1; transform: translateX(4px); }
+        100% { opacity: 0.7; transform: translateX(0); }
+    }
+    
+    .sequence-arrow {
+        display: inline-block;
+        margin: 0 5px;
+        color: var(--gray-600);
+        animation: arrowPulse 1.5s infinite;
     }
 </style>
 {% endblock %}
@@ -304,6 +364,16 @@
             
             // Add to the target cell and mark as filled
             this.appendChild(clone);
+            
+            // Add a success feedback animation
+            this.animate([
+                { transform: 'scale(1.05)', boxShadow: '0 0 0 3px rgba(76, 201, 240, 0.5)' },
+                { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(76, 201, 240, 0)' }
+            ], {
+                duration: 400,
+                easing: 'ease-out'
+            });
+            
             this.dataset.filled = position;
             this.dataset.placementTime = Date.now().toString();
             this.classList.add('filled');
@@ -317,6 +387,13 @@
             
             // Hide error message if present
             hideError();
+            
+            // If all pieces are placed, scroll to the verify button
+            if (placementSequence.length === 9) {
+                setTimeout(() => {
+                    verifyButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
         }
         
         function updatePiecesCount() {
@@ -331,21 +408,45 @@
         
         function updateSequenceDisplay() {
             if (placementSequence.length > 0) {
-                sequenceDisplay.innerHTML = placementSequence.map(pos => 
-                    `<span class="sequence-number">${pos}</span>`).join(' → ');
+                // Create a more visually appealing sequence display
+                const sequenceHTML = placementSequence.map((pos, index) => {
+                    // Don't add arrow after the last item
+                    const arrow = index < placementSequence.length - 1 
+                        ? '<i class="fas fa-arrow-right sequence-arrow"></i>' 
+                        : '';
+                    
+                    return `<span class="sequence-number">${pos}</span>${arrow}`;
+                }).join('');
+                
+                sequenceDisplay.innerHTML = sequenceHTML;
             } else {
                 sequenceDisplay.innerHTML = "<em>Place pieces in the correct positions</em>";
             }
         }
         
         function showError(message) {
-            errorMessageDiv.textContent = message;
+            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${message}`;
             errorMessageDiv.style.display = 'block';
+            
+            errorMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Add a subtle shake animation
+            errorMessageDiv.animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' },
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' },
+                { transform: 'translateX(0)' }
+            ], {
+                duration: 500,
+                easing: 'ease-in-out'
+            });
             
             // Automatically hide after a few seconds
             setTimeout(() => {
                 errorMessageDiv.style.display = 'none';
-            }, 3000);
+            }, 4000);
         }
         
         function hideError() {
@@ -354,6 +455,10 @@
         
         // Handle verify button click
         document.getElementById('verifyPattern').addEventListener('click', function() {
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Verifying...';
+            
             const pattern = logPattern();
             
             // Send pattern to server for verification
@@ -416,19 +521,34 @@
                     showSuccess(data.message, data.redirect_url);
                 } else {
                     showError(data.message || 'Pattern verification failed');
+                    // Reset button state
+                    const verifyButton = document.getElementById('verifyPattern');
+                    verifyButton.disabled = false;
+                    verifyButton.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verify Pattern & Continue';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showError(error.message || 'An error occurred during verification');
+                // Reset button state
+                const verifyButton = document.getElementById('verifyPattern');
+                verifyButton.disabled = false;
+                verifyButton.innerHTML = '<i class="fas fa-check-circle me-2"></i>Verify Pattern & Continue';
             });
         }
         
         function showSuccess(message, redirectUrl) {
-            // Create success message
+            // Create success message with animation
             const successDiv = document.createElement('div');
-            successDiv.className = 'alert alert-success mt-3';
-            successDiv.textContent = message;
+            successDiv.className = 'alert alert-success mt-3 d-flex align-items-center';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle fa-2x me-3"></i>
+                <div>
+                    <h5 class="alert-heading">Success!</h5>
+                    <p class="mb-0">${message}</p>
+                    <p class="mb-0 mt-1"><small>Redirecting to next step...</small></p>
+                </div>
+            `;
             
             // Get the verify button
             const verifyButton = document.getElementById('verifyPattern');
@@ -438,6 +558,15 @@
             
             // Hide verify button
             verifyButton.style.display = 'none';
+            
+            // Add entrance animation
+            successDiv.animate([
+                { opacity: 0, transform: 'translateY(-20px)' },
+                { opacity: 1, transform: 'translateY(0)' }
+            ], {
+                duration: 300,
+                easing: 'ease-out'
+            });
             
             // Redirect after a short delay
             setTimeout(() => {
@@ -450,4 +579,4 @@
         }
     });
 </script>
-{% endblock %} 
+{% endblock %}
